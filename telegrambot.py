@@ -45,7 +45,7 @@ for entry in feed.entries:
     detail_url = entry.link
     res = requests.get(detail_url)
     res.encoding = "utf-8"
-    soup = BeautifulSoup(res.text, "xml")
+    soup = BeautifulSoup(res.text, "lxml-xml")
 
     # 発生日時
     time = soup.find("jmx_eb:OriginTime")
@@ -80,3 +80,4 @@ for entry in feed.entries:
     save_history(history)
 
     break  # 最新の1件だけ送信
+
