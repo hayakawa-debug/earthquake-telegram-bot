@@ -43,6 +43,7 @@ for entry in feed.entries:
     hypocenter = soup.find("Hypocenter")
     magnitude = soup.find("jmx_eb:Magnitude")
     max_intensity = soup.find("MaxInt")
+    depth = soup.find("jmx_eb:Depth")
 
     origin_time = origin_time.text if origin_time else "不明"
     hypocenter = (
@@ -52,11 +53,13 @@ for entry in feed.entries:
     )
     magnitude = magnitude.text if magnitude else "不明"
     max_intensity = max_intensity.text if max_intensity else "不明"
+    depth = depth.text if depth else "不明"
 
     # 通知メッセージ
     message = (
         f"【地震情報（最終報）】\n"
         f"震源地: {hypocenter}\n"
+        f"深さ: {depth}\n"
         f"日時: {origin_time}\n"
         f"マグニチュード: {magnitude}\n"
         f"最大震度: {max_intensity}\n\n"
