@@ -1,39 +1,41 @@
-import os
 import feedparser
 import requests
+import os
+import json
 
-# Telegramの情報（GitHub Secretsから読み込む予定）
-TOKEN = os.getenv("TELEGRAM_TOKEN")
-CHAT_ID = os.getenv("TELEGRAM_CHAT_ID")
+# 環境変数から読み込む
+TELEGRAM_TOKEN = os.getenv("TELEGRAM_TOKEN")
+TELEGRAM_CHAT_ID = os.getenv("TELEGRAM_CHAT_ID")
 
-# 気象庁公式の地震情報フィード
+# 保存するファイル
+LAST_ID_FILE = "last_id.json"
+
+# 気象庁の地震フィード
 url = "https://www.data.jma.go.jp/developer/xml/feed/eqvol.xml"
 feed = feedparser.parse(url)
 
-# 最新の地震情報を取得
+# 最新の地震
 entry = feed.entries[0]
 title = entry.title
 link = entry.link
-eq_id = entry.id  # 地震ごとに固有のID
+entry_id = entry.id  # 一意のIDがある
 
-# 前回通知した地震のIDを保存するファイル
-last_file = "last_earthquake.txt"
-
-last_id = None
-if os.path.exists(last_file):
-    with open(last_file, "r", encoding="utf-8") as f:
-        last_id = f.read().strip()
+# 前回送信したIDを読み込み
+if os.path.exists(LAST_ID_FILE):
+    with open(LAST_ID_FILE, "r", encoding="utf-8") as f:
+        last_id = json.load(f).get("last_id")
+else:
+    last_id = None
 
 # 新しい地震なら通知
-if eq_id != last_id:
+if entry_id != last_id:
     message = f"【気象庁 地震情報】\n{title}\n{link}"
-    url = f"https://api.telegram.org/bot{TOKEN}/sendMessage"
-    payload = {"chat_id": CHAT_ID, "text": message}
-    requests.post(url, data=payload)
-    print("✅ 通知しました:", message)
+    url_send = f"https://api.telegram.org/bot{TELEGRAM_TOKEN}/sendMessage"
+    requests.post(url_send, data={"chat_id": TELEGRAM_CHAT_ID, "text": message})
 
-    # IDを更新して保存
-    with open(last_file, "w", encoding="utf-8") as f:
-        f.write(eq_id)
+    # 今回のIDを保存
+    with open(LAST_ID_FILE, "w", encoding="utf-8") as f:
+        json.dump({"last_id": entry_id}, f)
+    print("✅ 新しい地震を通知しました")
 else:
-    print("⏸ 新しい地震はありません")
+    print("⏩ 新しい地震はありません")
