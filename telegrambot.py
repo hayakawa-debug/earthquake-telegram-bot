@@ -1,79 +1,40 @@
-import os
 import feedparser
 import requests
-from bs4 import BeautifulSoup
+import os
 
-TOKEN = os.getenv("TELEGRAM_TOKEN")
-CHAT_ID = os.getenv("TELEGRAM_CHAT_ID")
+# Telegram設定
+TELEGRAM_TOKEN = os.getenv("TELEGRAM_TOKEN")
+TELEGRAM_CHAT_ID = os.getenv("TELEGRAM_CHAT_ID")
+
+def send_telegram(message):
+    url = f"https://api.telegram.org/bot{TELEGRAM_TOKEN}/sendMessage"
+    requests.post(url, data={"chat_id": TELEGRAM_CHAT_ID, "text": message})
+
+# 履歴ファイル
 HISTORY_FILE = "history.txt"
+if os.path.exists(HISTORY_FILE):
+    with open(HISTORY_FILE, "r", encoding="utf-8") as f:
+        history = f.read().splitlines()
+else:
+    history = []
 
-# RSSを取得
+# 気象庁の地震情報フィード
 url = "https://www.data.jma.go.jp/developer/xml/feed/eqvol.xml"
 feed = feedparser.parse(url)
 
-# 履歴を読み込み（id + updated）
-if os.path.exists(HISTORY_FILE):
-    with open(HISTORY_FILE, "r", encoding="utf-8") as f:
-        notified = set(f.read().splitlines())
-else:
-    notified = set()
-
 for entry in feed.entries:
-    eq_key = f"{entry.id}_{entry.updated}"
+    eq_id = entry.id + entry.updated
 
-    if eq_key in notified:
+    # ✅ 最終確定報だけに限定
+    if "震源・震度に関する情報" not in entry.title:
         continue
 
-    # ---- 区別ラベル ----
-    label = ""
-    if "震度速報" in entry.title:
-        label = "[速報]"
-    elif "震源に関する情報" in entry.title:
-        label = "[震源情報]"
-    elif "震度に関する情報" in entry.title:
-        label = "[震度情報]"
-    elif "震源・震度に関する情報" in entry.title:
-        label = "[確定報]"
-    else:
-        label = "[更新]"
+    if eq_id not in history:
+        message = f"【最終確定報】\n{entry.title}\n{entry.link}"
+        send_telegram(message)
 
-    # ---- summaryを解析 ----
-    soup = BeautifulSoup(entry.summary, "html.parser")
+        history.append(eq_id)
+        with open(HISTORY_FILE, "a", encoding="utf-8") as f:
+            f.write(eq_id + "\n")
 
-    epicenter, time, max_shindo, magnitude = "不明", "不明", "不明", "不明"
-    for table in soup.find_all("table"):
-        for row in table.find_all("tr"):
-            cells = row.find_all("td")
-            if len(cells) >= 2:
-                header = cells[0].get_text().strip()
-                value = cells[1].get_text().strip()
-                if "震源地" in header:
-                    epicenter = value
-                elif "発生" in header:
-                    time = value
-                elif "最大震度" in header:
-                    max_shindo = value
-                elif "マグニチュード" in header:
-                    magnitude = value
-
-    # ---- 通知メッセージ ----
-    text = (
-        f"{label} 気象庁 地震情報\n"
-        f"発生時刻: {time}\n"
-        f"震源地: {epicenter}\n"
-        f"最大震度: {max_shindo}\n"
-        f"マグニチュード: {magnitude}\n"
-        f"{entry.link}"
-    )
-
-    requests.post(f"https://api.telegram.org/bot{TOKEN}/sendMessage",
-                  data={"chat_id": CHAT_ID, "text": text})
-
-    print(f"✅ 通知しました: {label} {eq_key}")
-
-    notified.add(eq_key)
-
-# 履歴を保存
-with open(HISTORY_FILE, "w", encoding="utf-8") as f:
-    for eq in list(notified)[-200:]:
-        f.write(eq + "\n")
+        break  # 最新1件だけ通知
