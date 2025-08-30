@@ -14,11 +14,11 @@ def send_telegram_message(message: str):
 
 # 前回通知したIDを保持
 # last_id_file = "last_id.txt" 変更した所
-if os.path.exists(last_id_file):
-    with open(last_id_file, "r", encoding="utf-8") as f:
-        last_id = f.read().strip()
-else:
-    last_id = ""
+#if os.path.exists(last_id_file):
+ #   with open(last_id_file, "r", encoding="utf-8") as f:
+  #      last_id = f.read().strip()
+#else:
+ #   last_id = ""
 
 # 気象庁の地震フィードを取得
 url = "https://www.data.jma.go.jp/developer/xml/feed/eqvol.xml"
@@ -30,8 +30,8 @@ for entry in feed.entries:
         continue
 
     # 新しい地震かチェック
-    if entry.id == last_id:
-        break
+ #   if entry.id == last_id:
+  #      break
 
     detail_url = entry.link
     res = requests.get(detail_url)
@@ -44,4 +44,5 @@ for entry in feed.entries:
     print("==== DEBUG END ====")
 
     break  # まずはデバッグ用なので1件だけ処理
+
 
