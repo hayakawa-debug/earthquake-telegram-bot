@@ -22,7 +22,7 @@ else:
     last_id = ""
 
 # 気象庁の地震フィード
-url = "https://www.data.jma.go.jp/developer/xml/feed/eqvol.xml"
+url = "https://www.data.jma.go.jp/developer/xml/data/20250830050128_0_VXSE53_270000.xml"
 feed = feedparser.parse(url)
 
 for entry in feed.entries:
