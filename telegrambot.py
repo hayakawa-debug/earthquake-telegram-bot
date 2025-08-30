@@ -61,3 +61,12 @@ for entry in feed.entries:
         f.write(entry.id)
 
     break
+
+res = requests.get(detail_url)
+res.encoding = "utf-8"
+soup = BeautifulSoup(res.text, "xml")
+
+# デバッグ: どんなタグがあるか表示
+print("==== DEBUG START ====")
+print(soup.prettify()[:2000])  # 最初の2000文字だけ表示
+print("==== DEBUG END ====")
