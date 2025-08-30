@@ -2,6 +2,7 @@ import feedparser
 import requests
 from bs4 import BeautifulSoup
 import os
+import re
 
 # Telegram Bot API の設定
 TELEGRAM_TOKEN = os.getenv("TELEGRAM_TOKEN")
@@ -34,22 +35,29 @@ for entry in feed.entries:
     res.encoding = "utf-8"
     soup = BeautifulSoup(res.text, "xml")
 
-    # 各種情報を取得
-    origin_time = soup.find("OriginTime")
-    hypocenter = soup.find("Hypocenter")
-    magnitude = soup.find("jmx_eb:Magnitude")
-    max_intensity = soup.find("MaxInt")
-    depth = soup.find("jmx_eb:Depth")
+    # 発生日時
+    origin_time_tag = soup.find("OriginTime")
+    origin_time = origin_time_tag.text if origin_time_tag else "不明"
 
-    origin_time = origin_time.text if origin_time else "不明"
-    hypocenter = (
-        hypocenter.Area.Name.text
-        if hypocenter and hypocenter.Area and hypocenter.Area.Name
-        else "不明"
-    )
-    magnitude = magnitude.text if magnitude else "不明"
-    max_intensity = max_intensity.text if max_intensity else "不明"
-    depth = depth.text if depth else "不明"
+    # 震源地
+    hypocenter_tag = soup.find("Hypocenter")
+    hypocenter = hypocenter_tag.Area.Name.text if hypocenter_tag and hypocenter_tag.Area else "不明"
+
+    # 深さ
+    depth = "不明"
+    coord_tag = hypocenter_tag.Area.find("jmx_eb:Coordinate") if hypocenter_tag else None
+    if coord_tag and "description" in coord_tag.attrs:
+        match = re.search(r"深さ\s*(\d+)km", coord_tag["description"])
+        if match:
+            depth = f"{match.group(1)} km"
+
+    # マグニチュード
+    mag_tag = soup.find("jmx_eb:Magnitude")
+    magnitude = mag_tag["description"] if mag_tag and "description" in mag_tag.attrs else "不明"
+
+    # 最大震度
+    max_int_tag = soup.find("MaxInt")
+    max_intensity = max_int_tag.text if max_int_tag else "不明"
 
     # 通知メッセージ
     message = (
