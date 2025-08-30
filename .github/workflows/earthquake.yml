@@ -1,32 +1,22 @@
 name: Earthquake Bot
 
-# 実行タイミング
 on:
   schedule:
-    - cron: "*/5 * * * *"   # 5分ごとに実行
-  workflow_dispatch:         # 手動実行も可能
+    - cron: "*/5 * * * *"  # 5分ごとに実行
+  workflow_dispatch:       # 手動実行も可能
 
 jobs:
   run:
     runs-on: ubuntu-latest
     steps:
-      # リポジトリのチェックアウト
       - uses: actions/checkout@v3
-
-      # Python 3.11 のセットアップ
       - uses: actions/setup-python@v4
         with:
           python-version: 3.11
-
-      # pip を最新に更新
       - name: Upgrade pip
         run: python -m pip install --upgrade pip
-
-      # 必要なライブラリをインストール
       - name: Install dependencies
         run: python -m pip install feedparser requests beautifulsoup4 lxml
-
-      # Telegram Bot 実行
       - name: Run Telegram Bot
         run: python telegrambot.py
         env:
