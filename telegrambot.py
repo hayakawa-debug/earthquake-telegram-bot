@@ -13,7 +13,7 @@ def send_telegram_message(message: str):
     requests.post(url, data=payload)
 
 # 前回通知したIDを保持
-last_id_file = "last_id.txt"
+# last_id_file = "last_id.txt" 変更した所
 if os.path.exists(last_id_file):
     with open(last_id_file, "r", encoding="utf-8") as f:
         last_id = f.read().strip()
@@ -44,3 +44,4 @@ for entry in feed.entries:
     print("==== DEBUG END ====")
 
     break  # まずはデバッグ用なので1件だけ処理
+
