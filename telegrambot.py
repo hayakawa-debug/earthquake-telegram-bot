@@ -24,16 +24,18 @@ else:
 url = "https://www.data.jma.go.jp/developer/xml/feed/eqvol.xml"
 feed = feedparser.parse(url)
 
+# 最新のエントリを取得（最終報があれば優先）
+target_entry = None
 for entry in feed.entries:
-    # 「最終報」だけ対象にする
-    if "最終報" not in entry.title:
-        continue
-
-    # 新しい地震かチェック
-    if entry.id == last_id:
+    if "最終報" in entry.title:
+        target_entry = entry
         break
+# 最終報が見つからなければ一番新しいエントリを使う
+if not target_entry and feed.entries:
+    target_entry = feed.entries[0]
 
-    detail_url = entry.link
+if target_entry and target_entry.id != last_id:
+    detail_url = target_entry.link
     res = requests.get(detail_url)
     res.encoding = "utf-8"
     soup = BeautifulSoup(res.text, "lxml-xml")
@@ -55,9 +57,12 @@ for entry in feed.entries:
     max_intensity = max_intensity.text if max_intensity else "不明"
     depth = depth.text if depth else "不明"
 
+    # タイトルに「最終報」があるかどうかで表記を変える
+    report_type = "最終報" if "最終報" in target_entry.title else "速報"
+
     # 通知メッセージ
     message = (
-        f"【地震情報（最終報）】\n"
+        f"【地震情報（{report_type}）】\n"
         f"震源地: {hypocenter}\n"
         f"深さ: {depth}\n"
         f"日時: {origin_time}\n"
@@ -69,6 +74,4 @@ for entry in feed.entries:
 
     # 最後に通知したIDを保存
     with open(last_id_file, "w", encoding="utf-8") as f:
-        f.write(entry.id)
-
-    break  # 最新の最終報のみ通知
+        f.write(target_entry.id)
