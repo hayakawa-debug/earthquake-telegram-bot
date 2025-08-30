@@ -1,4 +1,8 @@
 name: Earthquake Bot
+- name: Run telegram bot
+  run: |
+    python telegrambot.py || true
+
 
 on:
   schedule:
