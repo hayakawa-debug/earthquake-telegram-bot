@@ -1,58 +1,65 @@
-import requests
-from bs4 import BeautifulSoup
 import os
+import requests
+import xml.etree.ElementTree as ET
+import pathlib
 
-# Telegram Bot API の設定
-TELEGRAM_TOKEN = os.getenv("TELEGRAM_TOKEN")
-TELEGRAM_CHAT_ID = os.getenv("TELEGRAM_CHAT_ID")
+TELEGRAM_TOKEN = os.environ["TELEGRAM_TOKEN"]
+TELEGRAM_CHAT_ID = os.environ["TELEGRAM_CHAT_ID"]
 
-def send_telegram_message(message: str):
+FEED_URL = "https://www.data.jma.go.jp/developer/xml/feed/eqvol.xml"
+LAST_EVENT_FILE = "latest_event.txt"
+
+def send_message(text: str):
     url = f"https://api.telegram.org/bot{TELEGRAM_TOKEN}/sendMessage"
-    payload = {"chat_id": TELEGRAM_CHAT_ID, "text": message}
-    requests.post(url, data=payload)
+    requests.post(url, data={"chat_id": TELEGRAM_CHAT_ID, "text": text})
 
-# 地震情報のURL
-earthquake_url = "https://www.data.jma.go.jp/developer/xml/data/20250830050128_0_VXSE53_270000.xml"
+def load_last_event():
+    if pathlib.Path(LAST_EVENT_FILE).exists():
+        return pathlib.Path(LAST_EVENT_FILE).read_text().strip()
+    return None
 
-# 地震情報を取得
-res = requests.get(earthquake_url)
-res.encoding = "utf-8"
-soup = BeautifulSoup(res.text, "xml")
+def save_last_event(event_id):
+    pathlib.Path(LAST_EVENT_FILE).write_text(event_id)
 
-# 発生日時
-origin_time_tag = soup.find("OriginTime")
-origin_time = origin_time_tag.text if origin_time_tag else "不明"
+def main():
+    last_event = load_last_event()
 
-# 震源地
-hypocenter_tag = soup.find("Hypocenter")
-hypocenter = hypocenter_tag.Area.Name.text if hypocenter_tag and hypocenter_tag.Area else "不明"
+    r = requests.get(FEED_URL)
+    r.raise_for_status()
+    root = ET.fromstring(r.content)
 
-# 深さ
-depth = "不明"
-coord_tag = hypocenter_tag.Area.find("jmx_eb:Coordinate") if hypocenter_tag else None
-if coord_tag and "description" in coord_tag.attrs:
-    depth_match = re.search(r"深さ\s*(\d+)km", coord_tag["description"])
-    if depth_match:
-        depth = f"{depth_match.group(1)} km"
+    ns = {"atom": "http://www.w3.org/2005/Atom"}
+    entries = root.findall("atom:entry", ns)
 
-# マグニチュード
-mag_tag = soup.find("jmx_eb:Magnitude")
-magnitude = mag_tag["description"] if mag_tag and "description" in mag_tag.attrs else "不明"
+    for entry in entries[:5]:  # 最新5件をチェック
+        link = entry.find("atom:link", ns).attrib["href"]
 
-# 最大震度
-max_int_tag = soup.find("MaxInt")
-max_intensity = max_int_tag.text if max_int_tag else "不明"
+        # 詳細XML取得
+        detail = requests.get(link).content
+        doc = ET.fromstring(detail)
 
-# 通知メッセージ
-message = (
-    f"【地震情報】\n"
-    f"震源地: {hypocenter}\n"
-    f"深さ: {depth}\n"
-    f"日時: {origin_time}\n"
-    f"マグニチュード: {magnitude}\n"
-    f"最大震度: {max_intensity}\n\n"
-    f"{earthquake_url}"
-)
+        ns_head = {"h": "http://xml.kishou.go.jp/jmaxml1/informationBasis1/"}
 
-# メッセージを送信
-send_telegram_message(message)
+        # InfoType が「最終報」のみ
+        info_type = doc.find(".//h:InfoType", ns_head)
+        if info_type is None or "最終報" not in info_type.text:
+            continue
+
+        event_id = doc.find(".//h:EventID", ns_head).text
+        if last_event == event_id:
+            print("同じ地震なので通知しません")
+            return
+
+        title = doc.find(".//h:Title", ns_head).text
+        time = doc.find(".//h:ReportDateTime", ns_head).text
+        headline = doc.find(".//h:Headline/h:Text", ns_head).text
+
+        message = f"【{title}】\n発表: {time}\n{headline}\n\n詳細: {link}"
+        send_message(message)
+
+        save_last_event(event_id)
+        print(f"通知済み EventID: {event_id}")
+        return
+
+if __name__ == "__main__":
+    main()
