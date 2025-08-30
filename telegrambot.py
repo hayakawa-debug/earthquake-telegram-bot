@@ -1,3 +1,24 @@
+for entry in feed.entries:
+    # 「最終報」だけ対象にする
+    if "最終報" not in entry.title:
+        continue
+
+    # 新しい地震かチェック
+    if entry.id == last_id:
+        break
+
+    detail_url = entry.link
+    res = requests.get(detail_url)
+    res.encoding = "utf-8"
+    soup = BeautifulSoup(res.text, "xml")
+
+    # デバッグ: どんなタグがあるか表示
+    print("==== DEBUG START ====")
+    print(soup.prettify()[:2000])  # 最初の2000文字だけ表示
+    print("==== DEBUG END ====")
+
+    # --- この下に元の解析処理を入れる ---
+
 import feedparser
 import requests
 from bs4 import BeautifulSoup
@@ -61,12 +82,3 @@ for entry in feed.entries:
         f.write(entry.id)
 
     break
-
-res = requests.get(detail_url)
-res.encoding = "utf-8"
-soup = BeautifulSoup(res.text, "xml")
-
-# デバッグ: どんなタグがあるか表示
-print("==== DEBUG START ====")
-print(soup.prettify()[:2000])  # 最初の2000文字だけ表示
-print("==== DEBUG END ====")
