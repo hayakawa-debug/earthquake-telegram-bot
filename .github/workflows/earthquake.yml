@@ -2,7 +2,7 @@ name: Earthquake Bot
 
 on:
   schedule:
-    - cron: "*/5 * * * *"   # 5分ごとに実行
+    - cron: "*/1 * * * *"   # 1分ごとに実行
   workflow_dispatch:
 
 jobs:
