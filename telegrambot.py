@@ -3,7 +3,6 @@ import requests
 from bs4 import BeautifulSoup
 import os
 
-# Telegram Bot API の設定
 TELEGRAM_TOKEN = os.getenv("TELEGRAM_TOKEN")
 TELEGRAM_CHAT_ID = os.getenv("TELEGRAM_CHAT_ID")
 
@@ -12,7 +11,6 @@ def send_telegram_message(message: str):
     payload = {"chat_id": TELEGRAM_CHAT_ID, "text": message}
     requests.post(url, data=payload)
 
-# 前回通知したIDを保持
 last_id_file = "last_id.txt"
 if os.path.exists(last_id_file):
     with open(last_id_file, "r", encoding="utf-8") as f:
@@ -20,49 +18,36 @@ if os.path.exists(last_id_file):
 else:
     last_id = ""
 
-# 気象庁の地震フィード
 url = "https://www.data.jma.go.jp/developer/xml/feed/eqvol.xml"
 feed = feedparser.parse(url)
 
-# 最新のエントリを取得（最終報があれば優先）
-target_entry = None
 for entry in feed.entries:
-    if "最終報" in entry.title:
-        target_entry = entry
-        break
-# 最終報が見つからなければ一番新しいエントリを使う
-if not target_entry and feed.entries:
-    target_entry = feed.entries[0]
+    if "最終報" not in entry.title:
+        continue
 
-if target_entry and target_entry.id != last_id:
-    detail_url = target_entry.link
+    if entry.id == last_id:
+        break
+
+    detail_url = entry.link
     res = requests.get(detail_url)
     res.encoding = "utf-8"
-    soup = BeautifulSoup(res.text, "lxml-xml")
+    soup = BeautifulSoup(res.text, "xml")
 
-    # 各種情報を取得
-    origin_time = soup.find("OriginTime")
-    hypocenter = soup.find("Hypocenter")
-    magnitude = soup.find("jmx_eb:Magnitude")
-    max_intensity = soup.find("MaxInt")
-    depth = soup.find("jmx_eb:Depth")
+    # XML の構造に沿って取得
+    origin_time = soup.select_one("jmx_eb\\:OriginTime")
+    hypocenter = soup.select_one("jmx_eb\\:Hypocenter > Area > Name")
+    magnitude = soup.select_one("jmx_eb\\:Magnitude")
+    max_intensity = soup.select_one("jmx_eb\\:MaxInt")
+    depth = soup.select_one("jmx_eb\\:Hypocenter > jmx_eb\\:Depth")
 
     origin_time = origin_time.text if origin_time else "不明"
-    hypocenter = (
-        hypocenter.Area.Name.text
-        if hypocenter and hypocenter.Area and hypocenter.Area.Name
-        else "不明"
-    )
+    hypocenter = hypocenter.text if hypocenter else "不明"
     magnitude = magnitude.text if magnitude else "不明"
     max_intensity = max_intensity.text if max_intensity else "不明"
     depth = depth.text if depth else "不明"
 
-    # タイトルに「最終報」があるかどうかで表記を変える
-    report_type = "最終報" if "最終報" in target_entry.title else "速報"
-
-    # 通知メッセージ
     message = (
-        f"【地震情報（{report_type}）】\n"
+        f"【地震情報（最終報）】\n"
         f"震源地: {hypocenter}\n"
         f"深さ: {depth}\n"
         f"日時: {origin_time}\n"
@@ -72,6 +57,7 @@ if target_entry and target_entry.id != last_id:
     )
     send_telegram_message(message)
 
-    # 最後に通知したIDを保存
     with open(last_id_file, "w", encoding="utf-8") as f:
-        f.write(target_entry.id)
+        f.write(entry.id)
+
+    break
