@@ -1,77 +1,84 @@
-import feedparser
-import requests
-from bs4 import BeautifulSoup
 import os
+import requests
+import feedparser
+import xml.etree.ElementTree as ET
 
-# Telegram Bot の設定
 TELEGRAM_TOKEN = os.getenv("TELEGRAM_TOKEN")
 TELEGRAM_CHAT_ID = os.getenv("TELEGRAM_CHAT_ID")
+FEED_URL = "https://www.data.jma.go.jp/developer/xml/feed/eqvol.xml"
 
-def send_telegram_message(message: str):
+SENT_FILE = "sent_event_ids.txt"
+
+def load_sent_ids():
+    if not os.path.exists(SENT_FILE):
+        return set()
+    with open(SENT_FILE, "r") as f:
+        return set(f.read().splitlines())
+
+def save_sent_ids(sent_ids):
+    with open(SENT_FILE, "w") as f:
+        f.write("\n".join(sent_ids))
+
+def send_telegram_message(message):
     url = f"https://api.telegram.org/bot{TELEGRAM_TOKEN}/sendMessage"
-    payload = {"chat_id": TELEGRAM_CHAT_ID, "text": message}
-    requests.post(url, data=payload)
+    requests.post(url, data={"chat_id": TELEGRAM_CHAT_ID, "text": message})
 
-# 前回通知した EventID を保存するファイル
-last_id_file = "last_id.txt"
-if os.path.exists(last_id_file):
-    with open(last_id_file, "r", encoding="utf-8") as f:
-        last_id = f.read().strip()
-else:
-    last_id = ""
+def main():
+    sent_ids = load_sent_ids()
+    new_sent_ids = set(sent_ids)
 
-# 全国地震速報フィード
-feed_url = "https://www.data.jma.go.jp/developer/xml/feed/eqvol.xml"
-feed = feedparser.parse(feed_url)
+    feed = feedparser.parse(FEED_URL)
 
-# フィードを逆順にして古い順→新しい順に処理
-for entry in reversed(feed.entries):
-    # 最終報だけ対象
-    if "最終報" not in entry.title:
-        continue
+    for entry in feed.entries:
+        if "震源・震度に関する情報" not in entry.title:
+            continue
 
-    # 新しい地震か確認
-    if entry.id == last_id:
-        continue
+        xml_url = entry.id
+        res = requests.get(xml_url)
+        root = ET.fromstring(res.content)
 
-    # 詳細 XML を取得
-    detail_url = entry.link
-    res = requests.get(detail_url)
-    res.encoding = "utf-8"
-    soup = BeautifulSoup(res.text, "lxml-xml")
+        ns = {
+            "jmx": "http://xml.kishou.go.jp/jmaxml1/",
+            "head": "http://xml.kishou.go.jp/jmaxml1/informationBasis1/",
+            "body": "http://xml.kishou.go.jp/jmaxml1/body/seismology1/",
+            "eb": "http://xml.kishou.go.jp/jmaxml1/elementBasis1/"
+        }
 
-    # 震源地・日時・マグニチュード・最大震度・深さを取得
-    origin_time_tag = soup.find("OriginTime")
-    hypocenter_tag = soup.find("Hypocenter")
-    magnitude_tag = soup.find("jmx_eb:Magnitude")
-    max_int_tag = soup.find("MaxInt")
-    depth_tag = soup.find("jmx_eb:Depth")
+        info_type = root.find(".//head:InfoType", ns).text
+        if info_type != "最終報":
+            continue
 
-    origin_time = origin_time_tag.text if origin_time_tag else "不明"
-    hypocenter = (
-        hypocenter_tag.Area.Name.text
-        if hypocenter_tag and hypocenter_tag.Area and hypocenter_tag.Area.Name
-        else "不明"
-    )
-    magnitude = magnitude_tag.text if magnitude_tag else "不明"
-    max_intensity = max_int_tag.text if max_int_tag else "不明"
-    depth = depth_tag.text if depth_tag else "不明"
+        event_id = root.find(".//head:EventID", ns).text
+        if event_id in sent_ids:
+            continue  # 送信済み
 
-    # Telegram メッセージ作成
-    message = (
-        f"【地震情報（最終報）】\n"
-        f"震源地: {hypocenter}\n"
-        f"深さ: {depth}\n"
-        f"日時: {origin_time}\n"
-        f"マグニチュード: {magnitude}\n"
-        f"最大震度: {max_intensity}\n\n"
-        f"{detail_url}"
-    )
+        # 各種データを抽出
+        origin_time = root.find(".//body:Earthquake/body:OriginTime", ns).text
+        hypocenter = root.find(".//body:Hypocenter/body:Area/body:Name", ns).text
+        magnitude = root.find(".//body:Magnitude", ns).get("description")
+        depth_desc = root.find(".//body:Hypocenter/body:Area/eb:Coordinate", ns).get("description")
+        max_int = root.find(".//body:Intensity/body:Observation/body:MaxInt", ns).text
 
-    send_telegram_message(message)
+        # 深さだけを抽出
+        depth = "不明"
+        if "深さ" in depth_desc:
+            depth = depth_desc.split("深さ")[-1].replace("　", "").replace("km", "km")
 
-    # 最後に通知した EventID を保存
-    with open(last_id_file, "w", encoding="utf-8") as f:
-        f.write(entry.id)
+        # Telegram送信用メッセージ
+        message = (
+            f"【地震情報 最終報】\n"
+            f"発生時刻: {origin_time}\n"
+            f"震央: {hypocenter}\n"
+            f"深さ: {depth}\n"
+            f"規模: {magnitude}\n"
+            f"最大震度: 震度{max_int}\n\n"
+            f"出典: 気象庁"
+        )
 
-    break  # 最新の最終報のみ通知
+        send_telegram_message(message)
+        new_sent_ids.add(event_id)
+
+    save_sent_ids(new_sent_ids)
+
+if __name__ == "__main__":
+    main()
