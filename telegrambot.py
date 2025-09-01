@@ -44,20 +44,19 @@ def main():
             "eb": "http://xml.kishou.go.jp/jmaxml1/elementBasis1/"
         }
 
-        info_type = root.find(".//head:InfoType", ns).text
-        if info_type != "最終報":
-            continue
-
         event_id = root.find(".//head:EventID", ns).text
         if event_id in sent_ids:
-            continue  # 送信済み
+            continue  # 送信済みはスキップ
+
+        info_type = root.find(".//head:InfoType", ns).text  # 速報/続報/最終報
 
         # 各種データを抽出
         origin_time = root.find(".//body:Earthquake/body:OriginTime", ns).text
         hypocenter = root.find(".//body:Hypocenter/body:Area/body:Name", ns).text
         magnitude = root.find(".//body:Magnitude", ns).get("description")
         depth_desc = root.find(".//body:Hypocenter/body:Area/eb:Coordinate", ns).get("description")
-        max_int = root.find(".//body:Intensity/body:Observation/body:MaxInt", ns).text
+        max_int_tag = root.find(".//body:Intensity/body:Observation/body:MaxInt", ns)
+        max_int = max_int_tag.text if max_int_tag is not None else "不明"
 
         # 深さだけを抽出
         depth = "不明"
@@ -66,7 +65,7 @@ def main():
 
         # Telegram送信用メッセージ
         message = (
-            f"【地震情報 最終報】\n"
+            f"【地震情報 {info_type}】\n"
             f"発生時刻: {origin_time}\n"
             f"震央: {hypocenter}\n"
             f"深さ: {depth}\n"
