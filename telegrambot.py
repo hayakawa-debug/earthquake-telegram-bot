@@ -9,7 +9,8 @@ TELEGRAM_CHAT_ID = os.getenv("TELEGRAM_CHAT_ID")
 ns = {
     "jmx": "http://xml.kishou.go.jp/jmaxml1/",
     "eb": "http://xml.kishou.go.jp/jmaxml1/elementBasis1/",
-    "body": "http://xml.kishou.go.jp/jmaxml1/body/seismology1/"
+    "body": "http://xml.kishou.go.jp/jmaxml1/body/seismology1/",
+    "ib": "http://xml.kishou.go.jp/jmaxml1/informationBasis1/"
 }
 
 def send_telegram_message(message: str):
@@ -37,7 +38,7 @@ def main():
     eq_root = ET.fromstring(res.text)
 
     # 発表時刻
-    time_tag = eq_root.find(".//jmx:Report/jmx:Head/jmx:ReportDateTime", ns)
+    time_tag = eq_root.find(".//ib:ReportDateTime", ns)
     time = time_tag.text if time_tag is not None else "不明"
 
     # マグニチュード
