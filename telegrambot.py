@@ -22,9 +22,6 @@ def fetch_and_parse(url):
     return ET.fromstring(res.text)
 
 def parse_depth(coord_text: str) -> str:
-    """
-    +緯度+経度-深さ/ の形式を km 表記に直す
-    """
     if coord_text and "-" in coord_text:
         try:
             depth_val = coord_text.split("-")[-1].replace("/", "")
@@ -50,15 +47,13 @@ def main():
         origin_time = eq.findtext(".//body:OriginTime", default="不明", namespaces=ns)
         hypocenter = eq.findtext(".//body:Hypocenter/body:Area/body:Name", default="不明", namespaces=ns)
 
-        # 深さ（km単位に整形）
         coord = eq.findtext(".//body:Hypocenter/body:Area/eb:Coordinate", default="", namespaces=ns)
         depth = parse_depth(coord)
 
-        # マグニチュード（タグ description 属性に入っている）
-        mag_tag = eq.find(".//body:Magnitude", ns)
-        magnitude = mag_tag.get("description") if mag_tag is not None else "不明"
+        # ✅ マグニチュード取得
+        mag_tag = eq.find(".//body:Magnitude/eb:Mag", ns)
+        magnitude = mag_tag.text if mag_tag is not None else "不明"
 
-        # 最大震度
         maxint = eq.findtext(".//body:Observation/body:MaxInt", default="不明", namespaces=ns)
 
         message = f"""📢 地震情報
