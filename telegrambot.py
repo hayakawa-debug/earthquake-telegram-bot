@@ -50,15 +50,15 @@ def main():
         coord = eq.findtext(".//body:Hypocenter/body:Area/eb:Coordinate", default="", namespaces=ns)
         depth = parse_depth(coord)
 
-        # ✅ マグニチュード取得
+        # ✅ マグニチュード取得修正
         mag_tag = eq.find(".//eb:Magnitude", ns)
-          if mag_tag is not None:
-          if mag_tag.text and mag_tag.text.strip():
-        magnitude = mag_tag.text.strip()
-           else:
-        magnitude = mag_tag.get("description", "不明").replace("Ｍ", "").replace("M", "")
-           else:
-        magnitude = "不明"
+        if mag_tag is not None:
+            if mag_tag.text and mag_tag.text.strip():
+                magnitude = mag_tag.text.strip()
+            else:
+                magnitude = mag_tag.get("description", "不明").replace("Ｍ", "").replace("M", "")
+        else:
+            magnitude = "不明"
 
         maxint = eq.findtext(".//body:Observation/body:MaxInt", default="不明", namespaces=ns)
 
@@ -73,4 +73,3 @@ def main():
 
 if __name__ == "__main__":
     main()
-
