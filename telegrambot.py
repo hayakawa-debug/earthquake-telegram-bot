@@ -21,29 +21,44 @@ def fetch_and_parse(url):
     res.encoding = "utf-8"
     return ET.fromstring(res.text)
 
+def parse_depth(coord_text: str) -> str:
+    """
+    +緯度+経度-深さ/ の形式を km 表記に直す
+    """
+    if coord_text and "-" in coord_text:
+        try:
+            depth_val = coord_text.split("-")[-1].replace("/", "")
+            return f"{int(depth_val) // 1000} km"
+        except:
+            return "不明"
+    return "不明"
+
 def main():
-    # 気象庁の地震情報一覧フィード
     feed_url = "https://www.data.jma.go.jp/developer/xml/feed/eqvol.xml"
     feed = requests.get(feed_url).text
     root = ET.fromstring(feed)
 
-    # 各エントリーを処理
     for entry in root.findall(".//{http://www.w3.org/2005/Atom}entry"):
         link = entry.find("{http://www.w3.org/2005/Atom}link").attrib["href"]
 
-        # XML本体を取得
         eq = fetch_and_parse(link)
 
-        # Earthquakeタグがなければスキップ
         eq_tag = eq.find(".//body:Earthquake", ns)
         if eq_tag is None:
             continue
 
         origin_time = eq.findtext(".//body:OriginTime", default="不明", namespaces=ns)
         hypocenter = eq.findtext(".//body:Hypocenter/body:Area/body:Name", default="不明", namespaces=ns)
-        depth = eq.findtext(".//body:Hypocenter/body:Area/eb:Coordinate", default="不明", namespaces=ns)
-        magnitude = eq.find(".//body:Magnitude", ns)
-        magnitude = magnitude.get("description") if magnitude is not None else "不明"
+
+        # 深さ（km単位に整形）
+        coord = eq.findtext(".//body:Hypocenter/body:Area/eb:Coordinate", default="", namespaces=ns)
+        depth = parse_depth(coord)
+
+        # マグニチュード（タグ description 属性に入っている）
+        mag_tag = eq.find(".//body:Magnitude", ns)
+        magnitude = mag_tag.get("description") if mag_tag is not None else "不明"
+
+        # 最大震度
         maxint = eq.findtext(".//body:Observation/body:MaxInt", default="不明", namespaces=ns)
 
         message = f"""📢 地震情報
