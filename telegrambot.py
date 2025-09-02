@@ -1,6 +1,7 @@
 import requests
 import xml.etree.ElementTree as ET
 import os
+from datetime import datetime
 
 TELEGRAM_TOKEN = os.environ["TELEGRAM_TOKEN"]
 TELEGRAM_CHAT_ID = os.environ["TELEGRAM_CHAT_ID"]
@@ -31,6 +32,14 @@ def parse_depth(coord_text: str) -> str:
         except:
             return "不明"
     return "不明"
+
+def format_japan_time(iso_time: str) -> str:
+    try:
+        # 例: "2025-09-02T16:02:00+09:00"
+        dt = datetime.fromisoformat(iso_time.replace("Z", "+09:00"))
+        return f"{dt.day}日{dt.hour}時{dt.minute:02d}分ころ"
+    except Exception:
+        return iso_time
 
 def get_last_id():
     if os.path.exists(LAST_ID_FILE):
@@ -67,12 +76,14 @@ def main():
         return
 
     origin_time = eq.findtext(".//body:OriginTime", default="不明", namespaces=ns)
+    formatted_time = format_japan_time(origin_time)
+
     hypocenter = eq.findtext(".//body:Hypocenter/body:Area/body:Name", default="不明", namespaces=ns)
 
     coord = eq.findtext(".//body:Hypocenter/body:Area/eb:Coordinate", default="", namespaces=ns)
     depth = parse_depth(coord)
 
-    # ✅ マグニチュード取得（eb:Magnitude対応）
+    # ✅ マグニチュード取得
     mag_tag = eq.find(".//eb:Magnitude", ns)
     if mag_tag is not None:
         magnitude = mag_tag.get("description") or mag_tag.text or "不明"
@@ -82,7 +93,7 @@ def main():
     maxint = eq.findtext(".//body:Observation/body:MaxInt", default="不明", namespaces=ns)
 
     message = f"""📢 地震情報
-発生時刻: {origin_time}
+{formatted_time}、地震がありました。
 震源地: {hypocenter}
 深さ: {depth}
 マグニチュード: {magnitude}
@@ -93,4 +104,3 @@ def main():
 
 if __name__ == "__main__":
     main()
-
