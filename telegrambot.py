@@ -1,7 +1,6 @@
 import requests
 import xml.etree.ElementTree as ET
 import os
-from datetime import datetime
 
 TELEGRAM_TOKEN = os.environ["TELEGRAM_TOKEN"]
 TELEGRAM_CHAT_ID = os.environ["TELEGRAM_CHAT_ID"]
@@ -24,23 +23,6 @@ def fetch_and_parse(url):
     res.encoding = "utf-8"
     return ET.fromstring(res.text)
 
-def parse_depth(coord_text: str) -> str:
-    if coord_text and "-" in coord_text:
-        try:
-            depth_val = coord_text.split("-")[-1].replace("/", "")
-            return f"{int(depth_val) // 1000} km"
-        except:
-            return "不明"
-    return "不明"
-
-def format_japan_time(iso_time: str) -> str:
-    try:
-        # 例: "2025-09-02T16:02:00+09:00"
-        dt = datetime.fromisoformat(iso_time.replace("Z", "+09:00"))
-        return f"{dt.day}日{dt.hour}時{dt.minute:02d}分ころ"
-    except Exception:
-        return iso_time
-
 def get_last_id():
     if os.path.exists(LAST_ID_FILE):
         with open(LAST_ID_FILE, "r") as f:
@@ -56,51 +38,53 @@ def main():
     feed = requests.get(feed_url).text
     root = ET.fromstring(feed)
 
-    # 最新の entry だけを処理
+    # 最新 entry を取得
     latest_entry = root.find(".//{http://www.w3.org/2005/Atom}entry")
     if latest_entry is None:
         return
 
     eq_id = latest_entry.find("{http://www.w3.org/2005/Atom}id").text
+    title = latest_entry.find("{http://www.w3.org/2005/Atom}title").text
 
     last_id = get_last_id()
     if eq_id == last_id:
-        print("⏩ すでに通知済みの地震です。")
+        print("⏩ すでに通知済みの地震です")
         return
 
     link = latest_entry.find("{http://www.w3.org/2005/Atom}link").attrib["href"]
     eq = fetch_and_parse(link)
 
-    eq_tag = eq.find(".//body:Earthquake", ns)
-    if eq_tag is None:
-        return
-
+    # 共通データ
     origin_time = eq.findtext(".//body:OriginTime", default="不明", namespaces=ns)
-    formatted_time = format_japan_time(origin_time)
-
     hypocenter = eq.findtext(".//body:Hypocenter/body:Area/body:Name", default="不明", namespaces=ns)
-
-    coord = eq.findtext(".//body:Hypocenter/body:Area/eb:Coordinate", default="", namespaces=ns)
-    depth = parse_depth(coord)
-
-    # ✅ マグニチュード取得
-    mag_tag = eq.find(".//eb:Magnitude", ns)
-    if mag_tag is not None:
-        magnitude = mag_tag.get("description") or mag_tag.text or "不明"
-    else:
-        magnitude = "不明"
-
     maxint = eq.findtext(".//body:Observation/body:MaxInt", default="不明", namespaces=ns)
+    magnitude = eq.findtext(".//eb:Magnitude", default="不明", namespaces=ns)
 
-    message = f"""📢 地震情報
-{formatted_time}、地震がありました。
+    # ✅ 震度速報か通常かでメッセージ切り替え
+    if "震度速報" in title:
+        message = f"""📢 震度速報
+{origin_time}ころ、地震がありました。
+震源地: {hypocenter}
+最大震度: {maxint}"""
+    else:
+        coord = eq.findtext(".//body:Hypocenter/body:Area/eb:Coordinate", default="", namespaces=ns)
+        depth = "不明"
+        if coord and "-" in coord:
+            try:
+                depth_val = coord.split("-")[-1].replace("/", "")
+                depth = f"{int(depth_val) // 1000} km"
+            except:
+                pass
+
+        message = f"""📢 地震情報
+発生時刻: {origin_time}
 震源地: {hypocenter}
 深さ: {depth}
 マグニチュード: {magnitude}
 最大震度: {maxint}"""
 
     send_telegram_message(message)
-    save_last_id(eq_id)  # ✅ 通知済みIDを保存
+    save_last_id(eq_id)  # ✅ 通知済みに保存
 
 if __name__ == "__main__":
     main()
