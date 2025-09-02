@@ -12,6 +12,8 @@ ns = {
     "eb": "http://xml.kishou.go.jp/jmaxml1/elementBasis1/",
 }
 
+LAST_ID_FILE = "last_id.txt"
+
 def send_telegram_message(text: str):
     url = f"https://api.telegram.org/bot{TELEGRAM_TOKEN}/sendMessage"
     requests.post(url, data={"chat_id": TELEGRAM_CHAT_ID, "text": text})
@@ -30,18 +32,34 @@ def parse_depth(coord_text: str) -> str:
             return "不明"
     return "不明"
 
+def get_last_id():
+    if os.path.exists(LAST_ID_FILE):
+        with open(LAST_ID_FILE, "r") as f:
+            return f.read().strip()
+    return None
+
+def save_last_id(eq_id):
+    with open(LAST_ID_FILE, "w") as f:
+        f.write(eq_id)
+
 def main():
     feed_url = "https://www.data.jma.go.jp/developer/xml/feed/eqvol.xml"
     feed = requests.get(feed_url).text
     root = ET.fromstring(feed)
 
-    # ✅ 最新の地震1件だけ取得
+    # 最新の entry だけを処理
     latest_entry = root.find(".//{http://www.w3.org/2005/Atom}entry")
     if latest_entry is None:
         return
 
-    link = latest_entry.find("{http://www.w3.org/2005/Atom}link").attrib["href"]
+    eq_id = latest_entry.find("{http://www.w3.org/2005/Atom}id").text
 
+    last_id = get_last_id()
+    if eq_id == last_id:
+        print("⏩ すでに通知済みの地震です。")
+        return
+
+    link = latest_entry.find("{http://www.w3.org/2005/Atom}link").attrib["href"]
     eq = fetch_and_parse(link)
 
     eq_tag = eq.find(".//body:Earthquake", ns)
@@ -54,8 +72,12 @@ def main():
     coord = eq.findtext(".//body:Hypocenter/body:Area/eb:Coordinate", default="", namespaces=ns)
     depth = parse_depth(coord)
 
+    # ✅ マグニチュード取得（description属性があれば使う）
     mag_tag = eq.find(".//body:Magnitude", ns)
-    magnitude = mag_tag.get("description") if mag_tag is not None else "不明"
+    if mag_tag is not None:
+        magnitude = mag_tag.get("description") or mag_tag.text or "不明"
+    else:
+        magnitude = "不明"
 
     maxint = eq.findtext(".//body:Observation/body:MaxInt", default="不明", namespaces=ns)
 
@@ -67,6 +89,7 @@ def main():
 最大震度: {maxint}"""
 
     send_telegram_message(message)
+    save_last_id(eq_id)  # ✅ 通知済みIDを保存
 
 if __name__ == "__main__":
     main()
