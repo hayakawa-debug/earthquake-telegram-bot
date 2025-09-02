@@ -72,8 +72,8 @@ def main():
     coord = eq.findtext(".//body:Hypocenter/body:Area/eb:Coordinate", default="", namespaces=ns)
     depth = parse_depth(coord)
 
-    # ✅ マグニチュード取得（description属性があれば使う）
-    mag_tag = eq.find(".//body:Magnitude", ns)
+    # ✅ マグニチュード取得（eb:Magnitude対応）
+    mag_tag = eq.find(".//eb:Magnitude", ns)
     if mag_tag is not None:
         magnitude = mag_tag.get("description") or mag_tag.text or "不明"
     else:
@@ -93,3 +93,4 @@ def main():
 
 if __name__ == "__main__":
     main()
+
