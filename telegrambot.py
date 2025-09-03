@@ -56,6 +56,10 @@ def main():
     title = latest_entry.find("{http://www.w3.org/2005/Atom}title").text
     link = latest_entry.find("{http://www.w3.org/2005/Atom}link").attrib["href"]
 
+    print(f"▶ タイトル: {title}")
+    print(f"▶ ID: {eq_id}")
+    print(f"▶ リンク: {link}")
+    
     last_id = get_last_id()
     if eq_id == last_id:
         print("⏩ すでに通知済み")
@@ -107,3 +111,4 @@ def main():
 
 if __name__ == "__main__":
     main()
+
