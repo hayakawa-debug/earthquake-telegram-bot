@@ -37,7 +37,7 @@ def main():
     feed = res.text
     root = ET.fromstring(feed)
 
-   速報データ = {}
+    速報データ = {}  # ✅ インデントを修正
 
     for entry in root.findall(".//{http://www.w3.org/2005/Atom}entry"):
         eq_id = entry.find("{http://www.w3.org/2005/Atom}id").text
@@ -59,7 +59,6 @@ def main():
 
         maxint = eq.findtext(".//body:Observation/body:MaxInt", default="不明", namespaces=ns)
 
-        # ✅ タイトル判定を強化
         if "震度速報" in title:
             速報データ[eq_id] = {
                 "time": origin_time,
