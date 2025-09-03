@@ -13,96 +13,93 @@ ns = {
     "eb": "http://xml.kishou.go.jp/jmaxml1/elementBasis1/",
 }
 
-LAST_ID_FILE = "last_id.txt"
-
+# メモリ内で通知済みIDを保持
+sent_ids = set()
 
 def send_telegram_message(text: str):
     url = f"https://api.telegram.org/bot{TELEGRAM_TOKEN}/sendMessage"
     requests.post(url, data={"chat_id": TELEGRAM_CHAT_ID, "text": text})
-
 
 def fetch_and_parse(url):
     res = requests.get(url)
     res.encoding = "utf-8"
     return ET.fromstring(res.text)
 
+def parse_depth(coord_text: str, coord_desc: str) -> str:
+    # description に「深さ 20km」などが含まれる場合
+    if coord_desc and "深さ" in coord_desc:
+        try:
+            return coord_desc.split("深さ")[-1].strip()
+        except:
+            pass
 
-def parse_depth(coord_text: str) -> str:
+    # 数値部分（例: +29.4+129.4-20000/ → 20km）
     if coord_text and "-" in coord_text:
         try:
             depth_val = coord_text.split("-")[-1].replace("/", "")
             return f"{int(depth_val) // 1000} km"
         except:
             return "不明"
+
     return "不明"
 
-
-def format_time(timestr: str) -> str:
+def format_time(origin_time: str) -> str:
     try:
-        dt = datetime.fromisoformat(timestr.replace("Z", "+00:00"))
-        return f"{dt.day}日{dt.hour}時{dt.minute}分ころ"
-    except Exception:
-        return timestr
-
-
-def get_last_id():
-    if os.path.exists(LAST_ID_FILE):
-        with open(LAST_ID_FILE, "r") as f:
-            return f.read().strip()
-    return None
-
-
-def save_last_id(eq_id):
-    with open(LAST_ID_FILE, "w") as f:
-        f.write(eq_id)
-
+        dt = datetime.fromisoformat(origin_time.replace("Z", "+00:00"))
+        return dt.strftime("%-d日%H時%M分")
+    except:
+        return origin_time
 
 def main():
     feed_url = "https://www.data.jma.go.jp/developer/xml/feed/eqvol.xml"
-    res = requests.get(feed_url)
-    res.encoding = "utf-8"
-    root = ET.fromstring(res.text)
+    feed = requests.get(feed_url).text
+    root = ET.fromstring(feed)
 
-    latest_entry = root.find(".//{http://www.w3.org/2005/Atom}entry")
-    if latest_entry is None:
-        return
+    for entry in root.findall(".//{http://www.w3.org/2005/Atom}entry"):
+        eq_id = entry.find("{http://www.w3.org/2005/Atom}id").text
+        title = entry.find("{http://www.w3.org/2005/Atom}title").text
+        link = entry.find("{http://www.w3.org/2005/Atom}link").attrib["href"]
 
-    eq_id = latest_entry.find("{http://www.w3.org/2005/Atom}id").text
-    last_id = get_last_id()
-    if eq_id == last_id:
-        print("⏩ すでに通知済みの地震です")
-        return
+        # すでに送ったIDはスキップ
+        if eq_id in sent_ids:
+            continue
 
-    link = latest_entry.find("{http://www.w3.org/2005/Atom}link").attrib["href"]
-    eq = fetch_and_parse(link)
+        eq = fetch_and_parse(link)
+        eq_tag = eq.find(".//body:Earthquake", ns)
+        if eq_tag is None:
+            continue
 
-    eq_tag = eq.find(".//body:Earthquake", ns)
-    if eq_tag is None:
-        return
+        # 発生時刻
+        origin_time = eq.findtext(".//body:OriginTime", default="不明", namespaces=ns)
+        origin_time_fmt = format_time(origin_time)
 
-    origin_time_raw = eq.findtext(".//body:OriginTime", default="不明", namespaces=ns)
-    origin_time = format_time(origin_time_raw)
+        # 震源地
+        hypocenter = eq.findtext(".//body:Hypocenter/body:Area/body:Name", default="不明", namespaces=ns)
 
-    hypocenter = eq.findtext(".//body:Hypocenter/body:Area/body:Name", default="不明", namespaces=ns)
-    coord = eq.findtext(".//body:Hypocenter/body:Area/eb:Coordinate", default="", namespaces=ns)
-    depth = parse_depth(coord)
+        # 座標 → 深さ
+        coord_elem = eq.find(".//body:Hypocenter/body:Area/eb:Coordinate", ns)
+        coord_text = coord_elem.text if coord_elem is not None else ""
+        coord_desc = coord_elem.get("description") if coord_elem is not None else ""
+        depth = parse_depth(coord_text, coord_desc)
 
-    mag_tag = eq.find(".//eb:Magnitude", ns)
-    magnitude = mag_tag.get("description") if mag_tag is not None else "不明"
+        # マグニチュード
+        mag_tag = eq.find(".//eb:Magnitude", ns)
+        magnitude = mag_tag.get("description") if mag_tag is not None else "不明"
 
-    maxint = eq.findtext(".//body:Observation/body:MaxInt", default="不明", namespaces=ns)
+        # 最大震度
+        maxint = eq.findtext(".//body:Observation/body:MaxInt", default="不明", namespaces=ns)
 
-    message = f"""📢 地震情報
+        # メッセージ生成
+        message = f"""📢 地震情報
 
-{origin_time}、地震がありました。
+{origin_time_fmt}ころ、地震がありました。
 震源地: {hypocenter}
 深さ: {depth}
 マグニチュード: {magnitude}
 最大震度: {maxint}"""
 
-    send_telegram_message(message)
-    save_last_id(eq_id)
-
+        send_telegram_message(message)
+        sent_ids.add(eq_id)  # 通知済みとして登録
 
 if __name__ == "__main__":
     main()
