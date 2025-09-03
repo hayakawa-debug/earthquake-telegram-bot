@@ -12,14 +12,17 @@ ns = {
     "eb": "http://xml.kishou.go.jp/jmaxml1/elementBasis1/",
 }
 
+
 def send_telegram_message(text: str):
     url = f"https://api.telegram.org/bot{TELEGRAM_TOKEN}/sendMessage"
     requests.post(url, data={"chat_id": TELEGRAM_CHAT_ID, "text": text})
+
 
 def fetch_and_parse(url):
     res = requests.get(url)
     res.encoding = "utf-8"
     return ET.fromstring(res.text)
+
 
 def parse_depth(coord_text: str) -> str:
     if coord_text and "-" in coord_text:
@@ -30,12 +33,13 @@ def parse_depth(coord_text: str) -> str:
             return "不明"
     return "不明"
 
+
 def main():
     feed_url = "https://www.data.jma.go.jp/developer/xml/feed/eqvol.xml"
     feed = requests.get(feed_url).text
     root = ET.fromstring(feed)
 
-   速報データ = {}
+    速報データ = {}
 
     # feed 内の entry をすべて処理
     for entry in root.findall(".//{http://www.w3.org/2005/Atom}entry"):
@@ -92,6 +96,7 @@ def main():
 最大震度: {maxint}"""
 
             send_telegram_message(message)
+
 
 if __name__ == "__main__":
     main()
