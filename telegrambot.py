@@ -12,7 +12,7 @@ ns = {
     "eb": "http://xml.kishou.go.jp/jmaxml1/elementBasis1/",
 }
 
-LAST_ID_FILE = "last_id.txt"
+LAST_EVENT_FILE = "last_event.txt"
 
 def send_telegram_message(text: str):
     url = f"https://api.telegram.org/bot{TELEGRAM_TOKEN}/sendMessage"
@@ -33,15 +33,26 @@ def parse_depth(coord_text: str) -> str:
             return "不明"
     return "不明"
 
-def get_last_id():
-    if os.path.exists(LAST_ID_FILE):
-        with open(LAST_ID_FILE, "r") as f:
+def get_last_event():
+    if os.path.exists(LAST_EVENT_FILE):
+        with open(LAST_EVENT_FILE, "r") as f:
             return f.read().strip()
     return None
 
-def save_last_id(eq_id):
-    with open(LAST_ID_FILE, "w") as f:
-        f.write(eq_id)
+def save_last_event(event_key):
+    with open(LAST_EVENT_FILE, "w") as f:
+        f.write(event_key)
+
+def format_time(origin_time: str) -> str:
+    """2025-09-03T11:36:00+09:00 → 11時36分"""
+    if "T" in origin_time:
+        try:
+            time_part = origin_time.split("T")[1]
+            hm = time_part.split("+")[0].split(":")
+            return f"{int(hm[0])}時{hm[1]}分"
+        except:
+            return origin_time
+    return origin_time
 
 def main():
     feed_url = "https://www.data.jma.go.jp/developer/xml/feed/eqvol.xml"
@@ -52,16 +63,8 @@ def main():
     if latest_entry is None:
         return
 
-    eq_id = latest_entry.find("{http://www.w3.org/2005/Atom}id").text
     title = latest_entry.find("{http://www.w3.org/2005/Atom}title").text
     link = latest_entry.find("{http://www.w3.org/2005/Atom}link").attrib["href"]
-
-    # 🔹 すでに通知済みなら終了
-    last_id = get_last_id()
-    if eq_id == last_id:
-        print("⏩ すでに通知済みの地震です。")
-        return
-
     eq = fetch_and_parse(link)
 
     eq_tag = eq.find(".//body:Earthquake", ns)
@@ -70,35 +73,46 @@ def main():
 
     # 発生時刻
     origin_time = eq.findtext(".//body:OriginTime", default="不明", namespaces=ns)
-    # JMA形式 → YYYY-MM-DDTHH:MM:SS+09:00 → HH時MM分
-    if "T" in origin_time:
-        try:
-            time_part = origin_time.split("T")[1]
-            hm = time_part.split("+")[0].split(":")
-            origin_time = f"{int(hm[0])}時{hm[1]}分"
-        except:
-            pass
+    display_time = format_time(origin_time)
 
+    # 震源地
     hypocenter = eq.findtext(".//body:Hypocenter/body:Area/body:Name", default="不明", namespaces=ns)
+
+    # 同一地震を識別するキー
+    event_key = f"{origin_time}_{hypocenter}"
+
+    last_event = get_last_event()
+    if event_key == last_event and "地震情報" not in title:
+        print("⏩ すでに通知済みの速報です。")
+        return
+
+    # 座標 → 深さ
     coord = eq.findtext(".//body:Hypocenter/body:Area/eb:Coordinate", default="", namespaces=ns)
     depth = parse_depth(coord)
 
+    # マグニチュード
     mag_tag = eq.find(".//eb:Magnitude", ns)
     magnitude = mag_tag.get("description") if mag_tag is not None else "不明"
 
+    # 最大震度
     maxint = eq.findtext(".//body:Observation/body:MaxInt", default="不明", namespaces=ns)
 
-    # ✅ 速報＋詳細まとめて通知
-    message = f"""📢 地震情報
+    # メッセージ分岐
+    if "震度速報" in title:
+        message = f"""📢 震度速報
 
-{origin_time}ころ、震度{maxint}の地震がありました。
+{display_time}ころ、震度{maxint}の地震がありました。"""
+    else:  # 地震情報（詳細）
+        message = f"""📢 地震情報（詳細）
+
+{display_time}ころ、震度{maxint}の地震がありました。
 震源地: {hypocenter}
 深さ: {depth}
 マグニチュード: {magnitude}"""
 
     send_telegram_message(message)
-    save_last_id(eq_id)
-    print("✅ 通知送信:", eq_id)
+    save_last_event(event_key)
+    print("✅ 通知送信:", event_key, title)
 
 if __name__ == "__main__":
     main()
