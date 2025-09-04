@@ -78,41 +78,47 @@ def main():
     # 震源地
     hypocenter = eq.findtext(".//body:Hypocenter/body:Area/body:Name", default="不明", namespaces=ns)
 
-    # 同一地震を識別するキー
+    # イベント識別キー（速報・詳細共通）
     event_key = f"{origin_time}_{hypocenter}"
 
     last_event = get_last_event()
-    if event_key == last_event and "地震情報" not in title:
-        print("⏩ すでに通知済みの速報です。")
-        return
 
-    # 座標 → 深さ
-    coord = eq.findtext(".//body:Hypocenter/body:Area/eb:Coordinate", default="", namespaces=ns)
-    depth = parse_depth(coord)
-
-    # マグニチュード
-    mag_tag = eq.find(".//eb:Magnitude", ns)
-    magnitude = mag_tag.get("description") if mag_tag is not None else "不明"
-
-    # 最大震度
-    maxint = eq.findtext(".//body:Observation/body:MaxInt", default="不明", namespaces=ns)
-
-    # メッセージ分岐
+    # ✅ 速報なら通知（ただし同じ速報はスキップ）
     if "震度速報" in title:
+        if event_key == last_event:
+            print("⏩ 速報はすでに通知済み")
+            return
+        maxint = eq.findtext(".//body:Observation/body:MaxInt", default="不明", namespaces=ns)
         message = f"""📢 震度速報
 
 {display_time}ころ、震度{maxint}の地震がありました。"""
-    else:  # 地震情報（詳細）
+        send_telegram_message(message)
+        save_last_event(event_key)
+        print("✅ 速報を通知:", event_key)
+        return
+
+    # ✅ 詳細なら速報を上書き（すでに詳細を送っていたらスキップ）
+    if "地震情報" in title:
+        if event_key == last_event:
+            print("⏩ この地震の詳細はすでに通知済み")
+            return
+
+        coord = eq.findtext(".//body:Hypocenter/body:Area/eb:Coordinate", default="", namespaces=ns)
+        depth = parse_depth(coord)
+        mag_tag = eq.find(".//eb:Magnitude", ns)
+        magnitude = mag_tag.get("description") if mag_tag is not None else "不明"
+        maxint = eq.findtext(".//body:Observation/body:MaxInt", default="不明", namespaces=ns)
+
         message = f"""📢 地震情報（詳細）
 
 {display_time}ころ、震度{maxint}の地震がありました。
 震源地: {hypocenter}
 深さ: {depth}
 マグニチュード: {magnitude}"""
-
-    send_telegram_message(message)
-    save_last_event(event_key)
-    print("✅ 通知送信:", event_key, title)
+        send_telegram_message(message)
+        save_last_event(event_key)
+        print("✅ 詳細を通知:", event_key)
+        return
 
 if __name__ == "__main__":
     main()
