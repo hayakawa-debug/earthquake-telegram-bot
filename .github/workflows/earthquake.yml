@@ -3,20 +3,13 @@ name: Earthquake Notification
 on:
   schedule:
     - cron: "*/1 * * * *"   # 毎分実行
-  workflow_dispatch:
+  workflow_dispatch:        # 手動実行も可
 
 jobs:
   notify:
     runs-on: ubuntu-latest
     steps:
       - uses: actions/checkout@v4
-
-      # 前回の last_id.txt を復元
-      - name: Restore last_id.txt
-        uses: actions/cache@v4
-        with:
-          path: last_id.txt
-          key: last-id-cache
 
       - name: Set up Python
         uses: actions/setup-python@v4
@@ -28,15 +21,23 @@ jobs:
           python -m pip install --upgrade pip
           pip install requests
 
+      # 🔽 前回の last_event.txt を復元
+      - name: Download last_event.txt
+        uses: actions/download-artifact@v4
+        with:
+          name: last-event
+          path: .
+
       - name: Run Earthquake Notification
         env:
           TELEGRAM_TOKEN: ${{ secrets.TELEGRAM_TOKEN }}
           TELEGRAM_CHAT_ID: ${{ secrets.TELEGRAM_CHAT_ID }}
         run: python telegrambot.py
 
-      # 今回の last_id.txt を保存
-      - name: Save last_id.txt
-        uses: actions/cache@v4
+      # 🔽 実行後に last_event.txt を保存
+      - name: Save last_event.txt
+        if: always()
+        uses: actions/upload-artifact@v4
         with:
-          path: last_id.txt
-          key: last-id-cache
+          name: last-event
+          path: last_event.txt
