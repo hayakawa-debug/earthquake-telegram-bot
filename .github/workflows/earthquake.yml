@@ -3,7 +3,7 @@ name: Earthquake Notification
 on:
   schedule:
     - cron: "*/1 * * * *"   # 毎分実行
-  workflow_dispatch:        # 手動実行も可
+  workflow_dispatch:
 
 jobs:
   notify:
@@ -21,12 +21,12 @@ jobs:
           python -m pip install --upgrade pip
           pip install requests
 
-      # 🔽 前回の last_event.txt を復元
       - name: Download last_event.txt
         uses: actions/download-artifact@v4
         with:
           name: last-event
           path: .
+        continue-on-error: true   # 初回は存在しなくてもOK
 
       - name: Run Earthquake Notification
         env:
@@ -34,9 +34,7 @@ jobs:
           TELEGRAM_CHAT_ID: ${{ secrets.TELEGRAM_CHAT_ID }}
         run: python telegrambot.py
 
-      # 🔽 実行後に last_event.txt を保存
       - name: Save last_event.txt
-        if: always()
         uses: actions/upload-artifact@v4
         with:
           name: last-event
