@@ -71,19 +71,14 @@ def main():
     if eq_tag is None:
         return
 
-    # 発生時刻
     origin_time = eq.findtext(".//body:OriginTime", default="不明", namespaces=ns)
     display_time = format_time(origin_time)
 
-    # 震源地
-    hypocenter = eq.findtext(".//body:Hypocenter/body:Area/body:Name", default="不明", namespaces=ns)
-
-    # イベント識別キー（速報・詳細共通）
-    event_key = f"{origin_time}_{hypocenter}"
-
+    # ✅ イベント識別キーは "発生時刻" のみ
+    event_key = origin_time
     last_event = get_last_event()
 
-    # ✅ 速報なら通知（ただし同じ速報はスキップ）
+    # 速報
     if "震度速報" in title:
         if event_key == last_event:
             print("⏩ 速報はすでに通知済み")
@@ -97,12 +92,12 @@ def main():
         print("✅ 速報を通知:", event_key)
         return
 
-    # ✅ 詳細なら速報を上書き（すでに詳細を送っていたらスキップ）
+    # 詳細
     if "地震情報" in title:
         if event_key == last_event:
             print("⏩ この地震の詳細はすでに通知済み")
             return
-
+        hypocenter = eq.findtext(".//body:Hypocenter/body:Area/body:Name", default="不明", namespaces=ns)
         coord = eq.findtext(".//body:Hypocenter/body:Area/eb:Coordinate", default="", namespaces=ns)
         depth = parse_depth(coord)
         mag_tag = eq.find(".//eb:Magnitude", ns)
