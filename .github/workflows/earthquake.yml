@@ -3,13 +3,20 @@ name: Earthquake Notification
 on:
   schedule:
     - cron: "*/1 * * * *"   # 毎分実行
-  workflow_dispatch:
+  workflow_dispatch:        # 手動実行も可
 
 jobs:
   notify:
     runs-on: ubuntu-latest
     steps:
       - uses: actions/checkout@v4
+
+      - name: Download last_event.txt
+        uses: actions/download-artifact@v4
+        continue-on-error: true   # ✅ 初回は存在しなくてもOK
+        with:
+          name: last-event
+          path: .
 
       - name: Set up Python
         uses: actions/setup-python@v4
@@ -20,13 +27,6 @@ jobs:
         run: |
           python -m pip install --upgrade pip
           pip install requests
-
-      - name: Download last_event.txt
-        uses: actions/download-artifact@v4
-        with:
-          name: last-event
-          path: .
-        continue-on-error: true   # 初回は存在しなくてもOK
 
       - name: Run Earthquake Notification
         env:
@@ -39,3 +39,4 @@ jobs:
         with:
           name: last-event
           path: last_event.txt
+          if-no-files-found: ignore   # ✅ ファイルが無くてもエラーにしない
