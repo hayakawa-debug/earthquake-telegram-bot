@@ -9,11 +9,13 @@ LAST_EVENT_FILE = "last_event.txt"
 
 FEED_URL = "https://www.data.jma.go.jp/developer/xml/feed/eqvol.xml"
 
+
 def send_telegram_message(message):
     url = f"https://api.telegram.org/bot{TELEGRAM_TOKEN}/sendMessage"
     data = {"chat_id": TELEGRAM_CHAT_ID, "text": message}
     r = requests.post(url, data=data)
     print("📤 Telegram API Response:", r.status_code, r.text)
+
 
 def format_time(iso_time):
     try:
@@ -22,6 +24,7 @@ def format_time(iso_time):
         return dt_jst.strftime("%H時%M分ごろ")
     except:
         return "不明"
+
 
 def main():
     last_event = None
@@ -46,23 +49,19 @@ def main():
         detail_xml.encoding = "utf-8"
         detail_root = ET.fromstring(detail_xml.text)
 
-        # --- detail_xml 取得後 ---
-detail_root = ET.fromstring(detail_xml.text)
+        # 名前空間マップを定義
+        ns = {
+            "eb": "http://xml.kishou.go.jp/jmaxml1/body/seismology1/",
+            "jmx": "http://xml.kishou.go.jp/jmaxml1/"
+        }
 
-# 名前空間マップを定義
-ns = {
-    "eb": "http://xml.kishou.go.jp/jmaxml1/body/seismology1/",
-    "jmx": "http://xml.kishou.go.jp/jmaxml1/"
-}
+        # XML から情報抽出
+        origin_time = detail_root.findtext(".//eb:OriginTime", namespaces=ns)
+        mag = detail_root.findtext(".//eb:Magnitude", namespaces=ns)
+        depth = detail_root.findtext(".//eb:Hypocenter//eb:Depth", namespaces=ns)
+        max_intensity = detail_root.findtext(".//eb:MaxInt", namespaces=ns)
 
-# XML から情報抽出
-origin_time = detail_root.findtext(".//eb:OriginTime", namespaces=ns)
-mag = detail_root.findtext(".//eb:Magnitude", namespaces=ns)
-depth = detail_root.findtext(".//eb:Hypocenter//eb:Depth", namespaces=ns)
-max_intensity = detail_root.findtext(".//eb:MaxInt", namespaces=ns)
-
-        
-　　　　　event_key = f"{origin_time}-{title}"
+        event_key = f"{origin_time}-{title}"
 
         print(f"▶ タイトル: {title}")
         print(f"▶ 発生時刻: {origin_time}")
@@ -77,7 +76,7 @@ max_intensity = detail_root.findtext(".//eb:MaxInt", namespaces=ns)
         message = (
             "📢 地震情報\n"
             f"{format_time(origin_time)}ころ、地震がありました。\n"
-            f"震源地: {depth or '不明'}\n"
+            f"震源の深さ: {depth or '不明'}\n"
             f"マグニチュード: {mag or '不明'}\n"
             f"最大震度: {max_intensity or '不明'}\n"
             f"詳細: {link}"
@@ -91,9 +90,6 @@ max_intensity = detail_root.findtext(".//eb:MaxInt", namespaces=ns)
 
         break  # 最新の1件だけ処理
 
+
 if __name__ == "__main__":
     main()
-
-
-
-
