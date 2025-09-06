@@ -49,12 +49,6 @@ def main():
         # --- detail_xml 取得後 ---
 detail_root = ET.fromstring(detail_xml.text)
 
-        # --- detail_xml 取得後 ---
-detail_root = ET.fromstring(detail_xml.text)
-
-        # --- detail_xml 取得後 ---
-detail_root = ET.fromstring(detail_xml.text)
-
 # 名前空間マップを定義
 ns = {
     "eb": "http://xml.kishou.go.jp/jmaxml1/body/seismology1/",
@@ -66,7 +60,9 @@ origin_time = detail_root.findtext(".//eb:OriginTime", namespaces=ns)
 mag = detail_root.findtext(".//eb:Magnitude", namespaces=ns)
 depth = detail_root.findtext(".//eb:Hypocenter//eb:Depth", namespaces=ns)
 max_intensity = detail_root.findtext(".//eb:MaxInt", namespaces=ns)
-event_key = f"{origin_time}-{title}"
+
+        
+　　　　　event_key = f"{origin_time}-{title}"
 
         print(f"▶ タイトル: {title}")
         print(f"▶ 発生時刻: {origin_time}")
@@ -97,6 +93,7 @@ event_key = f"{origin_time}-{title}"
 
 if __name__ == "__main__":
     main()
+
 
 
 
