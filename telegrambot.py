@@ -18,6 +18,7 @@ def send_telegram_message(message):
 
 
 def format_time(iso_time):
+    """ISO8601の時刻をJSTに変換して「HH時MM分ごろ」を返す"""
     try:
         dt = datetime.fromisoformat(iso_time.replace("Z", "+00:00"))
         dt_jst = dt.astimezone(timezone(timedelta(hours=9)))
@@ -58,8 +59,19 @@ def main():
         # XML から情報抽出
         origin_time = detail_root.findtext(".//eb:OriginTime", namespaces=ns)
         mag = detail_root.findtext(".//eb:Magnitude", namespaces=ns)
-        depth = detail_root.findtext(".//eb:Hypocenter//eb:Depth", namespaces=ns)
+        depth = detail_root.findtext(".//eb:Hypocenter/eb:Depth", namespaces=ns)
+        hypocenter_name = detail_root.findtext(".//eb:Hypocenter/eb:Area/eb:Name", namespaces=ns)
         max_intensity = detail_root.findtext(".//eb:MaxInt", namespaces=ns)
+
+        # 不明対応
+        if not hypocenter_name:
+            hypocenter_name = "不明"
+        if not depth:
+            depth = "不明"
+        if not mag:
+            mag = "不明"
+        if not max_intensity:
+            max_intensity = "不明"
 
         event_key = f"{origin_time}-{title}"
 
@@ -75,10 +87,11 @@ def main():
         # メッセージ作成
         message = (
             "📢 地震情報\n"
-            f"{format_time(origin_time)}ころ、地震がありました。\n"
-            f"震源の深さ: {depth or '不明'}\n"
-            f"マグニチュード: {mag or '不明'}\n"
-            f"最大震度: {max_intensity or '不明'}\n"
+            f"{format_time(origin_time)}、地震がありました。\n"
+            f"震源地: {hypocenter_name}\n"
+            f"震源の深さ: {depth}\n"
+            f"マグニチュード: {mag}\n"
+            f"最大震度: {max_intensity}\n"
             f"詳細: {link}"
         )
 
