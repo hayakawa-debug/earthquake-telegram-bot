@@ -125,8 +125,3 @@ def main():
 
 if __name__ == "__main__":
     main()
-
-print(f"▶ タイトル: {title}")
-print(f"▶ 発生時刻: {origin_time}")
-print(f"▶ イベントキー: {event_key}")
-print(f"▶ 最終通知済み: {last_event}")
