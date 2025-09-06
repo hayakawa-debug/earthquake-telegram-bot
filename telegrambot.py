@@ -71,8 +71,23 @@ def main():
 マグニチュード: {magnitude}
 最大震度: {maxint}"""
 
+    # 🔹 地震・津波判定
+    if "津波" in title:
+        # 津波情報を解析
+        tsunami_tags = eq.findall(".//body:Forecast/body:Item/body:Area/body:Name", ns)
+        areas = [t.text for t in tsunami_tags if t is not None]
+
+        if areas:
+            message = "🌊 津波情報\n津波警報・注意報が発表されました。\n\n対象地域:\n" + "\n".join(f"・{a}" for a in areas)
+        else:
+            message = "🌊 津波情報\n津波警報・注意報が発表されましたが、地域は不明です。"
+
+        send_telegram_message(message)
+        return
+    
     send_telegram_message(message)
     save_last_event(eq_id)
 
 if __name__ == "__main__":
     main()
+
