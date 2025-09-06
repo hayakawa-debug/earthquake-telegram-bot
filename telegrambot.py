@@ -49,18 +49,21 @@ def main():
         # --- detail_xml 取得後 ---
 detail_root = ET.fromstring(detail_xml.text)
 
-# 名前空間マップを定義
-ns = {
-    "eb": "http://xml.kishou.go.jp/jmaxml1/body/seismology1/",
-    "jmx": "http://xml.kishou.go.jp/jmaxml1/"
-}
+        # --- detail_xml 取得後 ---
+detail_root = ET.fromstring(detail_xml.text)
 
-# XML から情報抽出
-origin_time = detail_root.findtext(".//eb:OriginTime", namespaces=ns)
-mag = detail_root.findtext(".//eb:Magnitude", namespaces=ns)
-depth = detail_root.findtext(".//eb:Hypocenter//eb:Depth", namespaces=ns)
-max_intensity = detail_root.findtext(".//eb:MaxInt", namespaces=ns)
+        # 名前空間マップを定義
+          ns = {
+                "eb": "http://xml.kishou.go.jp/jmaxml1/body/seismology1/",
+                "jmx": "http://xml.kishou.go.jp/jmaxml1/"
+                
+               }
 
+        # XML から情報抽出
+        origin_time = detail_root.findtext(".//eb:OriginTime", namespaces=ns)
+        mag = detail_root.findtext(".//eb:Magnitude", namespaces=ns)
+        depth = detail_root.findtext(".//eb:Hypocenter//eb:Depth", namespaces=ns)
+        max_intensity = detail_root.findtext(".//eb:MaxInt", namespaces=ns)
         event_key = f"{origin_time}-{title}"
 
         print(f"▶ タイトル: {title}")
@@ -92,4 +95,5 @@ max_intensity = detail_root.findtext(".//eb:MaxInt", namespaces=ns)
 
 if __name__ == "__main__":
     main()
+
 
