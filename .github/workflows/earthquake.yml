@@ -11,15 +11,8 @@ jobs:
     steps:
       - uses: actions/checkout@v4
 
-      - name: Download last_event.txt
-        uses: actions/download-artifact@v4
-        continue-on-error: true   # ✅ 初回は存在しなくてもOK
-        with:
-          name: last-event
-          path: .
-
       - name: Set up Python
-        uses: actions/setup-python@v4
+        uses: actions/setup-python@v5
         with:
           python-version: "3.x"
 
@@ -28,15 +21,21 @@ jobs:
           python -m pip install --upgrade pip
           pip install requests
 
+      - name: Download last_event.txt (前回の通知情報)
+        uses: actions/download-artifact@v4
+        with:
+          name: last-event
+          path: .
+        continue-on-error: true   # 初回は存在しないので無視
+
       - name: Run Earthquake Notification
         env:
           TELEGRAM_TOKEN: ${{ secrets.TELEGRAM_TOKEN }}
           TELEGRAM_CHAT_ID: ${{ secrets.TELEGRAM_CHAT_ID }}
         run: python telegrambot.py
 
-      - name: Save last_event.txt
+      - name: Save last_event.txt (最新の通知情報)
         uses: actions/upload-artifact@v4
         with:
           name: last-event
           path: last_event.txt
-          if-no-files-found: ignore   # ✅ ファイルが無くてもエラーにしない
