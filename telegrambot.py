@@ -54,8 +54,8 @@ def main():
 
         origin_time = detail_root.findtext(".//eb:OriginTime", namespaces=ns)
         hypocenter_name = detail_root.findtext(".//eb:Hypocenter/eb:Area/eb:Name", namespaces=ns) or "不明"
-depth = detail_root.findtext(".//eb:Hypocenter/eb:Depth", namespaces=ns)
-mag = detail_root.findtext(".//eb:Hypocenter/eb:Magnitude", namespaces=ns)
+        depth = detail_root.findtext(".//eb:Hypocenter/eb:Depth", namespaces=ns)
+        mag = detail_root.findtext(".//eb:Hypocenter/eb:Magnitude", namespaces=ns)
         max_intensity = detail_root.findtext(".//eb:MaxInt", namespaces=ns) or "不明"
 
         # 速報には深さやマグニチュードが無い場合あり
@@ -95,6 +95,7 @@ mag = detail_root.findtext(".//eb:Hypocenter/eb:Magnitude", namespaces=ns)
 
 if __name__ == "__main__":
     main()
+
 
 
 
