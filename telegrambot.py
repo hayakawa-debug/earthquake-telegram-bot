@@ -69,7 +69,7 @@ def main():
         elif not mag:
             mag = "不明"
 
-        event_key = f"{origin_time}-{epicenter}-{mag}"
+        event_key = f"{origin_time}-{hypocenter_name}-{mag}"
 
         if event_key == last_event:
             print("⚠️ 同じイベントのためスキップ")
@@ -95,5 +95,6 @@ def main():
 
 if __name__ == "__main__":
     main()
+
 
 
