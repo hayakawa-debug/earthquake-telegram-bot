@@ -27,7 +27,6 @@ jobs:
     name: last-event
     path: .
   continue-on-error: true
-
 - name: Run Earthquake Notification
   env:
     TELEGRAM_TOKEN: ${{ secrets.TELEGRAM_TOKEN }}
