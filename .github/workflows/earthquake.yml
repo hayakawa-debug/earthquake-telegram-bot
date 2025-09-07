@@ -21,20 +21,21 @@ jobs:
           python -m pip install --upgrade pip
           pip install requests
           
-      - name: Download last_event.txt
-  uses: actions/download-artifact@v4
-  with:
-    name: last-event
-    path: .
-  continue-on-error: true
-- name: Run Earthquake Notification
-  env:
-    TELEGRAM_TOKEN: ${{ secrets.TELEGRAM_TOKEN }}
-    TELEGRAM_CHAT_ID: ${{ secrets.TELEGRAM_CHAT_ID }}
-  run: python telegrambot.py
+      - name: Download last_event.json
+        uses: actions/download-artifact@v4
+        with:
+          name: last-event
+          path: .
+        continue-on-error: true   # 初回はファイルがないので無視
 
-- name: Save last_event.txt
-  uses: actions/upload-artifact@v4
-  with:
-    name: last-event
-    path: last_event.txt
+      - name: Run Earthquake Notification
+        env:
+          TELEGRAM_TOKEN: ${{ secrets.TELEGRAM_TOKEN }}
+          TELEGRAM_CHAT_ID: ${{ secrets.TELEGRAM_CHAT_ID }}
+        run: python telegrambot.py
+
+      - name: Save last_event.json
+        uses: actions/upload-artifact@v4
+        with:
+          name: last-event
+          path: last_event.json
