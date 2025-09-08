@@ -72,9 +72,9 @@ def main():
         # Magnitude の取得（Hypocenter 内 or Earthquake 直下）
         mag_elem = detail_root.find(".//eb:Hypocenter/eb:Magnitude", namespaces=ns)
         if mag_elem is None:
-            mag_elem = detail_root.find(".//eb:Earthquake/eb:Magnitude", namespaces=ns)
+           mag_elem = detail_root.find(".//eb:Earthquake/eb:Magnitude", namespaces=ns)
         if mag_elem is not None and mag_elem.text:
-            mag_type = mag_elem.attrib.get("type", "M")
+           mag_type = mag_elem.attrib.get("type", "M")
            mag = f"{mag_type}{mag_elem.text}"
         else:
             mag = "不明"
@@ -130,6 +130,7 @@ with open("sample.xml", "w", encoding="utf-8") as f:
     f.write(r.text)
 
 print("Saved as sample.xml")
+
 
 
 
