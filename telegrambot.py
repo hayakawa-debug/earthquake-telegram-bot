@@ -79,6 +79,19 @@ def main():
         else:
             mag = "不明"
 
+        max_intensity = detail_root.findtext(".//eb:MaxInt", namespaces=ns) or "不明"
+
+        # 速報には深さやマグニチュードが無い場合あり
+        if not depth and "震度速報" in title:
+            depth = "未解析"
+        elif not depth:
+            depth = "不明"
+
+        if not mag and "震度速報" in title:
+            mag = "未解析"
+        elif not mag:
+            mag = "不明"
+
         # event_key 修正
         event_key = f"{origin_time}-{hypocenter_name}"
 
@@ -117,5 +130,6 @@ with open("sample.xml", "w", encoding="utf-8") as f:
     f.write(r.text)
 
 print("Saved as sample.xml")
+
 
 
