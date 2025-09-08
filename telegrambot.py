@@ -81,10 +81,10 @@ def main():
         elif not depth:
             depth = "不明"
 
-        if not mag and "震度速報" in title:
-            mag = "未解析"
-        elif not mag:
-            mag = "不明"
+        if not magnitude and "震度速報" in title:
+            magnitude= "未解析"
+        elif not magnitude:
+            magnitude= "不明"
 
         # event_key 修正
         event_key = f"{origin_time}-{hypocenter_name}"
@@ -124,6 +124,7 @@ with open("sample.xml", "w", encoding="utf-8") as f:
     f.write(r.text)
 
 print("Saved as sample.xml")
+
 
 
 
