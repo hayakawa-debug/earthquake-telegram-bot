@@ -48,37 +48,31 @@ def main():
         detail_root = ET.fromstring(detail_xml.text)
 
         ns = {
+            "jmx": "http://xml.kishou.go.jp/jmaxml1/",
             "eb": "http://xml.kishou.go.jp/jmaxml1/body/seismology1/",
-            "jmx": "http://xml.kishou.go.jp/jmaxml1/"
+            "jmx_eb": "http://xml.kishou.go.jp/jmaxml1/elementBasis1/"
         }
 
-        origin_time = detail_root.findtext(".//eb:OriginTime", namespaces=ns)
-                # --- 震源・マグニチュード ---
-        hypocenter_name = (
-            detail_root.findtext(".//eb:Hypocenter/eb:Area/eb:Name", namespaces=ns)
-            or "不明"
-        )
+        # 震源地
+        hypocenter = root.findtext(".//eb:Hypocenter/eb:Area/eb:Name", namespaces=ns)
 
-                # Depth の取得（Area 内 or Earthquake 直下）
-        depth_elem = detail_root.find(".//eb:Hypocenter/eb:Area/eb:Depth", namespaces=ns)
-        if depth_elem is None:
-            depth_elem = detail_root.find(".//eb:Earthquake/eb:Depth", namespaces=ns)
-        if depth_elem is not None and depth_elem.text:
-            unit = depth_elem.attrib.get("unit", "km")
-            depth = f"{depth_elem.text}{unit}"
-        else:
-            depth = "不明"
+        # マグニチュード
+        magnitude = root.findtext(".//jmx_eb:Magnitude", namespaces=ns)
 
-        # Magnitude の取得（Hypocenter 内 or Earthquake 直下）
-        mag_elem = detail_root.find(".//eb:Hypocenter/eb:Magnitude", namespaces=ns)
-        if mag_elem is None:
-           mag_elem = detail_root.find(".//eb:Earthquake/eb:Magnitude", namespaces=ns)
-        if mag_elem is not None and mag_elem.text:
-           mag_type = mag_elem.attrib.get("type", "M")
-           mag = f"{mag_type}{mag_elem.text}"
-        else:
-            mag = "不明"
+        # 深さ（description を読む）
+        coord = root.find(".//jmx_eb:Coordinate", namespaces=ns)
+        depth = None
+        if coord is not None and "description" in coord.attrib:
+            desc = coord.attrib["description"]
+            # 「深さ　１０ｋｍ」を抜き出す
+            import re
+            m = re.search(r"深さ　?([０-９0-9]+)ｋｍ", desc)
+            if m:
+                depth = m.group(1) + "km"
 
+        print("震源地:", hypocenter)
+        print("マグニチュード:", magnitude)
+        print("深さ:", depth)
         max_intensity = detail_root.findtext(".//eb:MaxInt", namespaces=ns) or "不明"
 
         # 速報には深さやマグニチュードが無い場合あり
@@ -130,6 +124,7 @@ with open("sample.xml", "w", encoding="utf-8") as f:
     f.write(r.text)
 
 print("Saved as sample.xml")
+
 
 
 
