@@ -59,37 +59,24 @@ def main():
             or "不明"
         )
 
-        # Depth の取得
+                # Depth の取得（Area内 or Earthquake直下）
         depth_elem = detail_root.find(".//eb:Hypocenter/eb:Area/eb:Depth", namespaces=ns)
         if depth_elem is None:
-            depth_elem = detail_root.find(".//eb:Hypocenter/eb:Depth", namespaces=ns)
+            depth_elem = detail_root.find(".//eb:Earthquake/eb:Depth", namespaces=ns)
         if depth_elem is not None and depth_elem.text:
             unit = depth_elem.attrib.get("unit", "km")
             depth = f"{depth_elem.text}{unit}"
         else:
             depth = "不明"
 
-        # Magnitude の取得（Hypocenter 直下 or Earthquake 直下）
+        # Magnitude の取得（Hypocenter内 or Earthquake直下）
         mag_elem = detail_root.find(".//eb:Hypocenter/eb:Magnitude", namespaces=ns)
         if mag_elem is None:
-            mag_elem = detail_root.find(".//eb:Magnitude", namespaces=ns)
+            mag_elem = detail_root.find(".//eb:Earthquake/eb:Magnitude", namespaces=ns)
         if mag_elem is not None and mag_elem.text:
             mag_type = mag_elem.attrib.get("type", "M")
             mag = f"{mag_type}{mag_elem.text}"
         else:
-            mag = "不明"
-        
-        max_intensity = detail_root.findtext(".//eb:MaxInt", namespaces=ns) or "不明"
-
-        # 速報には深さやマグニチュードが無い場合あり
-        if not depth and "震度速報" in title:
-            depth = "未解析"
-        elif not depth:
-            depth = "不明"
-
-        if not mag and "震度速報" in title:
-            mag = "未解析"
-        elif not mag:
             mag = "不明"
 
         # event_key 修正
@@ -130,4 +117,5 @@ with open("sample.xml", "w", encoding="utf-8") as f:
     f.write(r.text)
 
 print("Saved as sample.xml")
+
 
