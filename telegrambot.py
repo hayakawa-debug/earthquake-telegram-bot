@@ -53,23 +53,31 @@ def main():
         }
 
         origin_time = detail_root.findtext(".//eb:OriginTime", namespaces=ns)
-        hypocenter_name = detail_root.findtext(".//eb:Hypocenter/eb:Area/eb:Name", namespaces=ns) or "不明"
-        # Depth / Magnitude の取り出し
-        depth_elem = detail_root.find(".//eb:Hypocenter/eb:Area/eb:Depth", namespaces=ns)
-        mag_elem = detail_root.find(".//eb:Hypocenter/eb:Area/eb:Magnitude", namespaces=ns)
+                # --- 震源・マグニチュード ---
+        hypocenter_name = (
+            detail_root.findtext(".//eb:Hypocenter/eb:Area/eb:Name", namespaces=ns)
+            or "不明"
+        )
 
+        # Depth の取得
+        depth_elem = detail_root.find(".//eb:Hypocenter/eb:Area/eb:Depth", namespaces=ns)
+        if depth_elem is None:
+            depth_elem = detail_root.find(".//eb:Hypocenter/eb:Depth", namespaces=ns)
         if depth_elem is not None and depth_elem.text:
             unit = depth_elem.attrib.get("unit", "km")
             depth = f"{depth_elem.text}{unit}"
         else:
             depth = "不明"
 
+        # Magnitude の取得（Hypocenter 直下 or Earthquake 直下）
+        mag_elem = detail_root.find(".//eb:Hypocenter/eb:Magnitude", namespaces=ns)
+        if mag_elem is None:
+            mag_elem = detail_root.find(".//eb:Magnitude", namespaces=ns)
         if mag_elem is not None and mag_elem.text:
             mag_type = mag_elem.attrib.get("type", "M")
             mag = f"{mag_type}{mag_elem.text}"
         else:
             mag = "不明"
-
         
         max_intensity = detail_root.findtext(".//eb:MaxInt", namespaces=ns) or "不明"
 
@@ -122,3 +130,4 @@ with open("sample.xml", "w", encoding="utf-8") as f:
     f.write(r.text)
 
 print("Saved as sample.xml")
+
