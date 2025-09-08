@@ -59,7 +59,7 @@ def main():
             or "不明"
         )
 
-                # Depth の取得（Area内 or Earthquake直下）
+                # Depth の取得（Area 内 or Earthquake 直下）
         depth_elem = detail_root.find(".//eb:Hypocenter/eb:Area/eb:Depth", namespaces=ns)
         if depth_elem is None:
             depth_elem = detail_root.find(".//eb:Earthquake/eb:Depth", namespaces=ns)
@@ -69,13 +69,13 @@ def main():
         else:
             depth = "不明"
 
-        # Magnitude の取得（Hypocenter内 or Earthquake直下）
+        # Magnitude の取得（Hypocenter 内 or Earthquake 直下）
         mag_elem = detail_root.find(".//eb:Hypocenter/eb:Magnitude", namespaces=ns)
         if mag_elem is None:
             mag_elem = detail_root.find(".//eb:Earthquake/eb:Magnitude", namespaces=ns)
         if mag_elem is not None and mag_elem.text:
             mag_type = mag_elem.attrib.get("type", "M")
-            mag = f"{mag_type}{mag_elem.text}"
+           mag = f"{mag_type}{mag_elem.text}"
         else:
             mag = "不明"
 
