@@ -98,7 +98,7 @@ def main():
             f"{format_time(origin_time)}、地震がありました。\n"
             f"震源地: {hypocenter_name}\n"
             f"震源の深さ: {depth}\n"
-            f"マグニチュード: {mag}\n"
+            f"マグニチュード: {magnitude}\n"
             f"最大震度: {max_intensity}\n"
             f"詳細: {link}"
         )
@@ -124,6 +124,7 @@ with open("sample.xml", "w", encoding="utf-8") as f:
     f.write(r.text)
 
 print("Saved as sample.xml")
+
 
 
 
