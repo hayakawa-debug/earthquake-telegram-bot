@@ -58,17 +58,17 @@ def main():
         depth_elem = detail_root.find(".//eb:Hypocenter/eb:Area/eb:Depth", namespaces=ns)
         mag_elem = detail_root.find(".//eb:Hypocenter/eb:Area/eb:Magnitude", namespaces=ns)
 
-if depth_elem is not None and depth_elem.text:
-    unit = depth_elem.attrib.get("unit", "km")
-    depth = f"{depth_elem.text}{unit}"
-else:
-    depth = "不明"
+        if depth_elem is not None and depth_elem.text:
+            unit = depth_elem.attrib.get("unit", "km")
+            depth = f"{depth_elem.text}{unit}"
+        else:
+            depth = "不明"
 
-if mag_elem is not None and mag_elem.text:
-    mag_type = mag_elem.attrib.get("type", "M")
-    mag = f"{mag_type}{mag_elem.text}"
-else:
-    mag = "不明"
+        if mag_elem is not None and mag_elem.text:
+            mag_type = mag_elem.attrib.get("type", "M")
+            mag = f"{mag_type}{mag_elem.text}"
+        else:
+            mag = "不明"
 
         depth = f"{depth_elem.text}km" if depth_elem is not None else "不明"
         mag = f"M{mag_elem.text}" if mag_elem is not None else "不明"
@@ -86,7 +86,7 @@ else:
             mag = "不明"
 
         # event_key 修正
-event_key = f"{origin_time}-{hypocenter_name}"
+        event_key = f"{origin_time}-{hypocenter_name}"
 
         if event_key == last_event:
             print("⚠️ 同じイベントのためスキップ")
@@ -112,11 +112,3 @@ event_key = f"{origin_time}-{hypocenter_name}"
 
 if __name__ == "__main__":
     main()
-
-
-
-
-
-
-
-
