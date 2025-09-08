@@ -70,8 +70,7 @@ def main():
         else:
             mag = "不明"
 
-        depth = f"{depth_elem.text}km" if depth_elem is not None else "不明"
-        mag = f"M{mag_elem.text}" if mag_elem is not None else "不明"
+        
         max_intensity = detail_root.findtext(".//eb:MaxInt", namespaces=ns) or "不明"
 
         # 速報には深さやマグニチュードが無い場合あり
@@ -112,3 +111,4 @@ def main():
 
 if __name__ == "__main__":
     main()
+
