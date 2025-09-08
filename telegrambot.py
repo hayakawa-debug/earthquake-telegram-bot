@@ -112,3 +112,13 @@ def main():
 if __name__ == "__main__":
     main()
 
+import requests
+
+url = "https://www.data.jma.go.jp/developer/xml/data/20250907065553_0_VXSE53_010000.xml"
+r = requests.get(url)
+r.encoding = "utf-8"
+
+with open("sample.xml", "w", encoding="utf-8") as f:
+    f.write(r.text)
+
+print("Saved as sample.xml")
