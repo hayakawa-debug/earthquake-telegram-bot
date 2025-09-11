@@ -67,12 +67,19 @@ def main():
         depth = "不明"
         if coord is not None and "description" in coord.attrib:
             desc = coord.attrib["description"]
-            m = re.search(r"深さ　?([０-９0-9]+)ｋｍ", desc)
-            if m:
-                depth = m.group(1) + "km"
-            elif "深さ" in desc:
-                depth = desc.replace("　", "").replace("ｋｍ", "km")
-
+        # 「深さ 10km」パターン
+        m = re.search(r"深さ　?([０-９0-9]+)ｋｍ", desc)
+        if m:
+            depth = m.group(1) + "km"
+        else:
+            # 「ごく浅い」や「深さ不明」など文字だけの場合
+            if "ごく浅い" in desc:
+                depth = "ごく浅い"
+            elif "不明" in desc:
+                depth = "不明"
+            else:
+                depth = desc  # そのまま残す
+            
         # 最大震度
         max_intensity = detail_root.findtext(".//eb:MaxInt", namespaces=ns) or "不明"
 
@@ -98,3 +105,4 @@ def main():
 
 if __name__ == "__main__":
     main()
+
