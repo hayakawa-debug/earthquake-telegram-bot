@@ -106,7 +106,8 @@ def main():
                 f.write(f"LAST_EVENT_ID_NEW={event_key}\n")
         
         if __name__ == "__main__":
-    main()
+        main()
+
 
 
 
