@@ -96,15 +96,13 @@ def main():
         msg = f"📢 地震情報\n{format_time(origin_time)}、地震がありました。\n震源地: {hypocenter}\n震源の深さ: {depth}\nマグニチュード: {magnitude or '不明'}\n最大震度: {max_intensity}\n詳細: {link}"
 
         send_telegram_message(msg)
-
+        
         # 今回のイベントを保存
-        with open(LAST_EVENT_FILE, "w", encoding="utf-8") as f:
-            f.write(event_key)
-
-        break  # 最新の1件だけ処理
+        print(f"::set-output name=last_event::{event_key}")
 
 
 if __name__ == "__main__":
     main()
+
 
 
