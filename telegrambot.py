@@ -25,9 +25,14 @@ def format_time(iso_time):
     except:
         return "不明"
 
+LAST_EVENT_FILE = "last_event.txt"
 
 def main():
-    last_event = os.getenv("LAST_EVENT_ID", None)  # Secrets から受け取る
+    # 前回のイベントを読み込み
+    last_event = None
+    if os.path.exists(LAST_EVENT_FILE):
+        with open(LAST_EVENT_FILE, "r", encoding="utf-8") as f:
+            last_event = f.read().strip()
 
     r = requests.get(FEED_URL)
     r.encoding = "utf-8"
@@ -40,10 +45,12 @@ def main():
         if not any(key in title for key in ["震源", "震度", "津波"]):
             continue
 
+        # 詳細XML取得
         detail_xml = requests.get(link)
         detail_xml.encoding = "utf-8"
         detail_root = ET.fromstring(detail_xml.text)
 
+        def 
         ns = {
             "eb": "http://xml.kishou.go.jp/jmaxml1/body/seismology1/",
             "jmx_eb": "http://xml.kishou.go.jp/jmaxml1/elementBasis1/"
@@ -77,13 +84,16 @@ def main():
         # 最大震度
         max_intensity = detail_root.findtext(".//eb:MaxInt", namespaces=ns) or "不明"
 
-        # イベントキー = 発生時刻+震源地
+
+        # --- 中略（発生時刻、震源地、深さ、Mなどの取得処理）---
+
         event_key = f"{origin_time}-{hypocenter}"
 
-        # 前回と同じイベントならスキップ
         if event_key == last_event:
             print("⚠️ 前回と同じ地震なので通知しません")
             return
+
+        # --- メッセージ作成・送信 ---
 
         # メッセージ作成
         msg = (
@@ -98,13 +108,13 @@ def main():
 
         send_telegram_message(msg)
 
-        LAST_EVENT_FILE = "last_event.txt"
-
         # 今回のイベントを保存
         with open(LAST_EVENT_FILE, "w", encoding="utf-8") as f:
             f.write(event_key)
 
+        break  # 最新の1件だけ処理
 
 if __name__ == "__main__":
     main()
+
 
