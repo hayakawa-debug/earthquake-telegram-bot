@@ -99,10 +99,15 @@ def main():
         
         # 今回のイベントを保存
         print(f"::set-output name=last_event::{event_key}")
-
-
-if __name__ == "__main__":
+        
+        # GitHub Actionsに出力
+        if "GITHUB_OUTPUT" in os.environ:
+            with open(os.environ["GITHUB_OUTPUT"], "a") as f:
+        f.write(f"LAST_EVENT_ID_NEW={event_key}\n")
+        
+        if __name__ == "__main__":
     main()
+
 
 
 
