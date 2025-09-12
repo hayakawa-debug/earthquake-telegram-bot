@@ -26,7 +26,7 @@ jobs:
         with:
           name: last-event
           path: .
-        continue-on-error: true   # 初回はファイルがないので無視
+        continue-on-error: true
 
       - name: Run Earthquake Notification
         env:
