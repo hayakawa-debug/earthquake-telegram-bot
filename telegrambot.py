@@ -25,7 +25,9 @@ def format_time(iso_time):
     except:
         return "不明"
 
+
 LAST_EVENT_FILE = "last_event.txt"
+
 
 def main():
     # 前回のイベントを読み込み
@@ -50,7 +52,6 @@ def main():
         detail_xml.encoding = "utf-8"
         detail_root = ET.fromstring(detail_xml.text)
 
-        def 
         ns = {
             "eb": "http://xml.kishou.go.jp/jmaxml1/body/seismology1/",
             "jmx_eb": "http://xml.kishou.go.jp/jmaxml1/elementBasis1/"
@@ -84,16 +85,13 @@ def main():
         # 最大震度
         max_intensity = detail_root.findtext(".//eb:MaxInt", namespaces=ns) or "不明"
 
-
-        # --- 中略（発生時刻、震源地、深さ、Mなどの取得処理）---
-
+        # イベントキー = 発生時刻+震源地
         event_key = f"{origin_time}-{hypocenter}"
 
+        # 前回と同じイベントならスキップ
         if event_key == last_event:
             print("⚠️ 前回と同じ地震なので通知しません")
             return
-
-        # --- メッセージ作成・送信 ---
 
         # メッセージ作成
         msg = (
@@ -114,7 +112,6 @@ def main():
 
         break  # 最新の1件だけ処理
 
+
 if __name__ == "__main__":
     main()
-
-
