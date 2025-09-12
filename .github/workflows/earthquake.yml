@@ -17,16 +17,15 @@ jobs:
           python-version: "3.x"
 
       - name: Install dependencies
-        run: |
-          pip install requests
+        run: pip install requests
 
-      # 前回のイベントファイルをダウンロード
+      # 前回の last_event.txt を復元
       - name: Download last_event
         uses: actions/download-artifact@v4
         with:
           name: last-event
           path: .
-        continue-on-error: true   # 初回は存在しないので無視
+        continue-on-error: true
 
       - name: Run Earthquake Notification
         env:
@@ -34,7 +33,7 @@ jobs:
           TELEGRAM_CHAT_ID: ${{ secrets.TELEGRAM_CHAT_ID }}
         run: python telegrambot.py
 
-      # 今回のイベントを保存
+      # 今回の last_event.txt を保存
       - name: Save last_event
         uses: actions/upload-artifact@v4
         with:
