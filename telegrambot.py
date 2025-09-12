@@ -102,11 +102,12 @@ def main():
         
         # GitHub Actionsに出力
         if "GITHUB_OUTPUT" in os.environ:
-            with open(os.environ["GITHUB_OUTPUT"], "a") as f:
+        with open(os.environ["GITHUB_OUTPUT"], "a") as f:
         f.write(f"LAST_EVENT_ID_NEW={event_key}\n")
         
         if __name__ == "__main__":
     main()
+
 
 
 
