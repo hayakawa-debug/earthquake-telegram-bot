@@ -98,13 +98,13 @@ def main():
 
         send_telegram_message(msg)
 
-        # GitHub Actions に最新イベントを出力
-        if "GITHUB_OUTPUT" in os.environ:
-            with open(os.environ["GITHUB_OUTPUT"], "a") as f:
-                f.write(f"LAST_EVENT_ID_NEW={event_key}\n")
+        LAST_EVENT_FILE = "last_event.txt"
 
-        break  # 最新1件だけ処理
+        # 今回のイベントを保存
+        with open(LAST_EVENT_FILE, "w", encoding="utf-8") as f:
+            f.write(event_key)
 
 
 if __name__ == "__main__":
     main()
+
