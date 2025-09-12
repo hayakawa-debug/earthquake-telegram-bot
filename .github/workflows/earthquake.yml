@@ -27,6 +27,12 @@ jobs:
           path: .
         continue-on-error: true
 
+      - name: Ensure last_event.txt exists
+        run: |
+          if [ ! -f last_event.txt ]; then
+            echo "NO_EVENT" > last_event.txt
+          fi
+
       - name: Run Earthquake Notification
         env:
           TELEGRAM_TOKEN: ${{ secrets.TELEGRAM_TOKEN }}
