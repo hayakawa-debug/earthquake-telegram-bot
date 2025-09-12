@@ -6,7 +6,6 @@ import re
 
 TELEGRAM_TOKEN = os.getenv("TELEGRAM_TOKEN")
 TELEGRAM_CHAT_ID = os.getenv("TELEGRAM_CHAT_ID")
-LAST_EVENT_FILE = "last_event.txt"
 
 FEED_URL = "https://www.data.jma.go.jp/developer/xml/feed/eqvol.xml"
 
@@ -28,10 +27,7 @@ def format_time(iso_time):
 
 
 def main():
-    last_event = None
-    if os.path.exists(LAST_EVENT_FILE):
-        with open(LAST_EVENT_FILE, "r", encoding="utf-8") as f:
-            last_event = f.read().strip()
+    last_event = os.getenv("LAST_EVENT_ID", None)  # Secrets から受け取る
 
     r = requests.get(FEED_URL)
     r.encoding = "utf-8"
@@ -62,25 +58,22 @@ def main():
         # マグニチュード
         magnitude = detail_root.findtext(".//jmx_eb:Magnitude", namespaces=ns)
 
-                # 深さ
+        # 深さ
         depth = "不明"
         coord = detail_root.find(".//jmx_eb:Coordinate", namespaces=ns)
         if coord is not None and "description" in coord.attrib:
             desc = coord.attrib["description"]
-
-            # 「深さ 10km」パターン
             m = re.search(r"深さ　?([０-９0-9]+)ｋｍ", desc)
             if m:
                 depth = m.group(1) + "km"
             else:
-                # 「ごく浅い」「深さ不明」など文字だけの場合
                 if "ごく浅い" in desc:
                     depth = "ごく浅い"
                 elif "不明" in desc:
                     depth = "不明"
                 else:
-                    depth = desc  # そのまま残す
-            
+                    depth = desc
+
         # 最大震度
         max_intensity = detail_root.findtext(".//eb:MaxInt", namespaces=ns) or "不明"
 
@@ -93,24 +86,25 @@ def main():
             return
 
         # メッセージ作成
-        msg = f"📢 地震情報\n{format_time(origin_time)}、地震がありました。\n震源地: {hypocenter}\n震源の深さ: {depth}\nマグニチュード: {magnitude or '不明'}\n最大震度: {max_intensity}\n詳細: {link}"
+        msg = (
+            f"📢 地震情報\n"
+            f"{format_time(origin_time)}、地震がありました。\n"
+            f"震源地: {hypocenter}\n"
+            f"震源の深さ: {depth}\n"
+            f"マグニチュード: {magnitude or '不明'}\n"
+            f"最大震度: {max_intensity}\n"
+            f"詳細: {link}"
+        )
 
         send_telegram_message(msg)
-        
-        # 今回のイベントを保存
-        print(f"::set-output name=last_event::{event_key}")
-        
-        # GitHub Actionsに出力
+
+        # GitHub Actions に最新イベントを出力
         if "GITHUB_OUTPUT" in os.environ:
             with open(os.environ["GITHUB_OUTPUT"], "a") as f:
                 f.write(f"LAST_EVENT_ID_NEW={event_key}\n")
-        
-        if __name__ == "__main__":
-        main()
+
+        break  # 最新1件だけ処理
 
 
-
-
-
-
-
+if __name__ == "__main__":
+    main()
