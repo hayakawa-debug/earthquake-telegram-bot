@@ -6,15 +6,42 @@ import re
 
 TELEGRAM_TOKEN = os.getenv("TELEGRAM_TOKEN")
 TELEGRAM_CHAT_ID = os.getenv("TELEGRAM_CHAT_ID")
-LAST_EVENT_ID = os.getenv("LAST_EVENT_ID")  # Secretsから読み込み
+GIST_ID = os.getenv("GIST_ID")
+GIST_TOKEN = os.getenv("GIST_TOKEN")
 
 FEED_URL = "https://www.data.jma.go.jp/developer/xml/feed/eqvol.xml"
 
+
+# --- Gist操作 ---
+def get_last_event():
+    url = f"https://api.github.com/gists/{GIST_ID}"
+    r = requests.get(url, headers={"Authorization": f"token {GIST_TOKEN}"})
+    r.raise_for_status()
+    gist = r.json()
+    return gist["files"]["last_event.txt"]["content"].strip()
+
+
+def update_last_event(event_key):
+    url = f"https://api.github.com/gists/{GIST_ID}"
+    data = {
+        "files": {
+            "last_event.txt": {
+                "content": event_key
+            }
+        }
+    }
+    r = requests.patch(url, headers={"Authorization": f"token {GIST_TOKEN}"}, json=data)
+    r.raise_for_status()
+    print(f"✅ Gist updated: {event_key}")
+
+
+# --- Telegram送信 ---
 def send_telegram_message(message):
     url = f"https://api.telegram.org/bot{TELEGRAM_TOKEN}/sendMessage"
     data = {"chat_id": TELEGRAM_CHAT_ID, "text": message}
     r = requests.post(url, data=data)
     print("📤 Telegram API Response:", r.status_code, r.text)
+
 
 def format_time(iso_time):
     try:
@@ -24,8 +51,14 @@ def format_time(iso_time):
     except:
         return "不明"
 
+
+# --- メイン処理 ---
 def main():
-    last_event = LAST_EVENT_ID or "NO_EVENT"
+    try:
+        last_event = get_last_event()
+    except Exception as e:
+        print("⚠️ Gist取得失敗:", e)
+        last_event = "NO_EVENT"
 
     r = requests.get(FEED_URL)
     r.encoding = "utf-8"
@@ -38,6 +71,7 @@ def main():
         if not any(key in title for key in ["震源", "震度", "津波"]):
             continue
 
+        # 詳細XML取得
         detail_xml = requests.get(link)
         detail_xml.encoding = "utf-8"
         detail_root = ET.fromstring(detail_xml.text)
@@ -69,10 +103,12 @@ def main():
 
         event_key = f"{origin_time}-{hypocenter}"
 
+        # 同じイベントならスキップ
         if event_key == last_event:
             print("⚠️ 前回と同じ地震なので通知しません")
             return
 
+        # 通知メッセージ
         msg = (
             f"📢 地震情報\n"
             f"{format_time(origin_time)}、地震がありました。\n"
@@ -84,12 +120,9 @@ def main():
         )
 
         send_telegram_message(msg)
+        update_last_event(event_key)
+        break  # 最新1件だけ処理
 
-        # GitHub Actionsに渡す
-        with open(os.environ["GITHUB_OUTPUT"], "a", encoding="utf-8") as f:
-            f.write(f"LAST_EVENT_ID_NEW={event_key}\n")
-
-        break
 
 if __name__ == "__main__":
     main()
