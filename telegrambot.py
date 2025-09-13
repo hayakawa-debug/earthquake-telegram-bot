@@ -11,38 +11,45 @@ GIST_TOKEN = os.getenv("GIST_TOKEN")
 
 FEED_URL = "https://www.data.jma.go.jp/developer/xml/feed/eqvol.xml"
 
-
-# --- Gist操作 ---
-def get_last_event():
-    url = f"https://api.github.com/gists/{GIST_ID}"
-    r = requests.get(url, headers={"Authorization": f"token {GIST_TOKEN}"})
-    r.raise_for_status()
-    gist = r.json()
-    return gist["files"]["last_event.txt"]["content"].strip()
-
-
-def update_last_event(event_key):
-    url = f"https://api.github.com/gists/{GIST_ID}"
-    data = {
-        "files": {
-            "last_event.txt": {
-                "content": event_key
-            }
-        }
-    }
-    r = requests.patch(url, headers={"Authorization": f"token {GIST_TOKEN}"}, json=data)
-    r.raise_for_status()
-    print(f"✅ Gist updated: {event_key}")
-
-
-# --- Telegram送信 ---
+# =====================
+# Telegram送信
+# =====================
 def send_telegram_message(message):
     url = f"https://api.telegram.org/bot{TELEGRAM_TOKEN}/sendMessage"
     data = {"chat_id": TELEGRAM_CHAT_ID, "text": message}
     r = requests.post(url, data=data)
     print("📤 Telegram API Response:", r.status_code, r.text)
 
+# =====================
+# Gist 読み込み
+# =====================
+def load_last_event():
+    url = f"https://api.github.com/gists/{GIST_ID}"
+    headers = {"Authorization": f"token {GIST_TOKEN}"}
+    r = requests.get(url, headers=headers)
+    if r.status_code != 200:
+        print("⚠️ Gist読み込み失敗:", r.status_code, r.text)
+        return None
+    gist_data = r.json()
+    return gist_data["files"]["last_event.txt"]["content"].strip()
 
+# =====================
+# Gist 保存
+# =====================
+def save_last_event(event_key):
+    url = f"https://api.github.com/gists/{GIST_ID}"
+    headers = {"Authorization": f"token {GIST_TOKEN}"}
+    data = {
+        "files": {
+            "last_event.txt": {"content": event_key}
+        }
+    }
+    r = requests.patch(url, headers=headers, json=data)
+    print("💾 Gist更新:", r.status_code, r.text)
+
+# =====================
+# 時刻整形
+# =====================
 def format_time(iso_time):
     try:
         dt = datetime.fromisoformat(iso_time.replace("Z", "+00:00"))
@@ -51,14 +58,12 @@ def format_time(iso_time):
     except:
         return "不明"
 
-
-# --- メイン処理 ---
+# =====================
+# メイン処理
+# =====================
 def main():
-    try:
-        last_event = get_last_event()
-    except Exception as e:
-        print("⚠️ Gist取得失敗:", e)
-        last_event = "NO_EVENT"
+    last_event = load_last_event()
+    print("📂 前回のイベント:", last_event)
 
     r = requests.get(FEED_URL)
     r.encoding = "utf-8"
@@ -81,10 +86,16 @@ def main():
             "jmx_eb": "http://xml.kishou.go.jp/jmaxml1/elementBasis1/"
         }
 
+        # 発生時刻
         origin_time = detail_root.findtext(".//eb:OriginTime", namespaces=ns)
+
+        # 震源地
         hypocenter = detail_root.findtext(".//eb:Hypocenter/eb:Area/eb:Name", namespaces=ns) or "不明"
+
+        # マグニチュード
         magnitude = detail_root.findtext(".//jmx_eb:Magnitude", namespaces=ns)
 
+        # 深さ
         depth = "不明"
         coord = detail_root.find(".//jmx_eb:Coordinate", namespaces=ns)
         if coord is not None and "description" in coord.attrib:
@@ -92,23 +103,26 @@ def main():
             m = re.search(r"深さ　?([０-９0-9]+)ｋｍ", desc)
             if m:
                 depth = m.group(1) + "km"
-            elif "ごく浅い" in desc:
-                depth = "ごく浅い"
-            elif "不明" in desc:
-                depth = "不明"
             else:
-                depth = desc
+                if "ごく浅い" in desc:
+                    depth = "ごく浅い"
+                elif "不明" in desc:
+                    depth = "不明"
+                else:
+                    depth = desc
 
+        # 最大震度
         max_intensity = detail_root.findtext(".//eb:MaxInt", namespaces=ns) or "不明"
 
+        # イベントキー
         event_key = f"{origin_time}-{hypocenter}"
 
-        # 同じイベントならスキップ
+        # 前回と同じならスキップ
         if event_key == last_event:
             print("⚠️ 前回と同じ地震なので通知しません")
             return
 
-        # 通知メッセージ
+        # メッセージ作成
         msg = (
             f"📢 地震情報\n"
             f"{format_time(origin_time)}、地震がありました。\n"
@@ -120,8 +134,8 @@ def main():
         )
 
         send_telegram_message(msg)
-        update_last_event(event_key)
-        break  # 最新1件だけ処理
+        save_last_event(event_key)  # Gistに保存
+        break
 
 
 if __name__ == "__main__":
