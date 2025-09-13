@@ -19,12 +19,13 @@ jobs:
       - name: Install dependencies
         run: pip install requests
 
-      # 前回の last_event.txt を復元（キャッシュ）
+      # 前回の last_event.txt を復元
       - name: Restore last_event cache
-        uses: actions/cache/restore@v4
+        uses: actions/cache@v4
         with:
           path: last_event.txt
           key: last-event-cache
+          restore-keys: last-event-cache
 
       - name: Ensure last_event.txt exists
         run: |
@@ -38,7 +39,7 @@ jobs:
           TELEGRAM_CHAT_ID: ${{ secrets.TELEGRAM_CHAT_ID }}
         run: python telegrambot.py
 
-      # 更新された last_event.txt を保存（キャッシュ更新）
+      # 更新された last_event.txt を保存
       - name: Save last_event cache
         uses: actions/cache/save@v4
         with:
