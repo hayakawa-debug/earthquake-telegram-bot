@@ -19,10 +19,29 @@ jobs:
       - name: Install dependencies
         run: pip install requests
 
+      # 前回の last_event.txt を復元
+      - name: Download last_event
+        uses: actions/download-artifact@v4
+        with:
+          name: last-event
+          path: .
+        continue-on-error: true
+
+      - name: Ensure last_event.txt exists
+        run: |
+          if [ ! -f last_event.txt ]; then
+            echo "NO_EVENT" > last_event.txt
+          fi
+
       - name: Run Earthquake Notification
         env:
           TELEGRAM_TOKEN: ${{ secrets.TELEGRAM_TOKEN }}
           TELEGRAM_CHAT_ID: ${{ secrets.TELEGRAM_CHAT_ID }}
-          GIST_ID: ${{ secrets.GIST_ID }}
-          GIST_TOKEN: ${{ secrets.GIST_TOKEN }}
         run: python telegrambot.py
+
+      # 今回の last_event.txt を保存
+      - name: Save last_event
+        uses: actions/upload-artifact@v4
+        with:
+          name: last-event
+          path: last_event.txt
