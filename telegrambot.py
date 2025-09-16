@@ -20,13 +20,13 @@ def format_time(iso_time):
         dt = datetime.fromisoformat(iso_time.replace("Z", "+00:00"))
         dt_jst = dt.astimezone(timezone(timedelta(hours=9)))
         return dt_jst.strftime("%H時%M分ごろ")
-    except:
+    except Exception:
         return "不明"
 
 LAST_EVENT_FILE = "last_event.txt"
 
 def main():
-    # 前回のイベントIDを読み込み
+    # 前回のイベントを読み込み
     last_event = None
     if os.path.exists(LAST_EVENT_FILE):
         with open(LAST_EVENT_FILE, "r", encoding="utf-8") as f:
@@ -37,17 +37,15 @@ def main():
     root = ET.fromstring(r.text)
 
     for entry in root.findall("{http://www.w3.org/2005/Atom}entry"):
+        entry_id = entry.find("{http://www.w3.org/2005/Atom}id").text  # 固有ID
         title = entry.find("{http://www.w3.org/2005/Atom}title").text
         link = entry.find("{http://www.w3.org/2005/Atom}link").attrib["href"]
 
         if not any(key in title for key in ["震源", "震度", "津波"]):
             continue
 
-        # ✅ 固有IDをイベントキーにする（文字化け防止 & 一意保証）
-        event_key = entry.find("{http://www.w3.org/2005/Atom}id").text
-
-        # 同じイベントなら通知しない
-        if event_key == last_event:
+        # 前回と同じイベントならスキップ
+        if entry_id == last_event:
             print("⚠️ 前回と同じ地震なので通知しません")
             return
 
@@ -61,10 +59,16 @@ def main():
             "jmx_eb": "http://xml.kishou.go.jp/jmaxml1/elementBasis1/"
         }
 
+        # 発生時刻
         origin_time = detail_root.findtext(".//eb:OriginTime", namespaces=ns)
+
+        # 震源地
         hypocenter = detail_root.findtext(".//eb:Hypocenter/eb:Area/eb:Name", namespaces=ns) or "不明"
+
+        # マグニチュード
         magnitude = detail_root.findtext(".//jmx_eb:Magnitude", namespaces=ns)
 
+        # 深さ
         depth = "不明"
         coord = detail_root.find(".//jmx_eb:Coordinate", namespaces=ns)
         if coord is not None and "description" in coord.attrib:
@@ -72,13 +76,15 @@ def main():
             m = re.search(r"深さ　?([０-９0-9]+)ｋｍ", desc)
             if m:
                 depth = m.group(1) + "km"
-            elif "ごく浅い" in desc:
-                depth = "ごく浅い"
-            elif "不明" in desc:
-                depth = "不明"
             else:
-                depth = desc
+                if "ごく浅い" in desc:
+                    depth = "ごく浅い"
+                elif "不明" in desc:
+                    depth = "不明"
+                else:
+                    depth = desc
 
+        # 最大震度
         max_intensity = detail_root.findtext(".//eb:MaxInt", namespaces=ns) or "不明"
 
         # メッセージ作成
@@ -94,11 +100,11 @@ def main():
 
         send_telegram_message(msg)
 
-        # ✅ 今回のイベントIDを保存
+        # 今回のイベントIDを保存（URLではなく entry_id）
         with open(LAST_EVENT_FILE, "w", encoding="utf-8") as f:
-            f.write(event_key)
+            f.write(entry_id)
 
-        break  # 最新1件だけ処理
+        break  # 最新の1件だけ処理
 
 if __name__ == "__main__":
     main()
