@@ -14,7 +14,7 @@ FEED_URL = "https://www.data.jma.go.jp/developer/xml/feed/eqvol.xml"
 GIST_ID = os.getenv("GIST_ID")  # 例: "d2d218f735290fbb3ee534cfa304196d"
 GIST_TOKEN = os.getenv("GIST_TOKEN")  # repo gist 権限付き PAT
 
-HEADERS = {"Authorization": f"token {GITHUB_TOKEN}"}
+HEADERS = {"Authorization": f"token {GIST_TOKEN}"}
 
 
 def send_telegram_message(message):
@@ -125,4 +125,5 @@ def main():
 
 if __name__ == "__main__":
     main()
+
 
