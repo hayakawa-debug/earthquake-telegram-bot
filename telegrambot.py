@@ -7,74 +7,90 @@ import re
 TELEGRAM_TOKEN = os.getenv("TELEGRAM_TOKEN")
 TELEGRAM_CHAT_ID = os.getenv("TELEGRAM_CHAT_ID")
 
+GH_TOKEN = os.getenv("GH_TOKEN")  # GitHub PAT
+GIST_ID = os.getenv("GIST_ID")    # Gist ID（手動でSecretsに保存する）
+
 FEED_URL = "https://www.data.jma.go.jp/developer/xml/feed/eqvol.xml"
-LAST_EVENT_FILE = "last_event.txt"
 
 
-def send_telegram_message(message: str):
+def send_telegram_message(message):
     url = f"https://api.telegram.org/bot{TELEGRAM_TOKEN}/sendMessage"
     data = {"chat_id": TELEGRAM_CHAT_ID, "text": message}
     r = requests.post(url, data=data)
     print("📤 Telegram API Response:", r.status_code, r.text)
 
 
-def format_time(iso_time: str) -> str:
+def format_time(iso_time):
     try:
         dt = datetime.fromisoformat(iso_time.replace("Z", "+00:00"))
         dt_jst = dt.astimezone(timezone(timedelta(hours=9)))
         return dt_jst.strftime("%H時%M分ごろ")
-    except Exception:
+    except:
         return "不明"
 
 
-def load_last_event():
-    if os.path.exists(LAST_EVENT_FILE):
-        with open(LAST_EVENT_FILE, "r", encoding="utf-8") as f:
-            return f.read().strip()
-    return None
+def get_last_event():
+    """Gist から last_event を取得"""
+    url = f"https://api.github.com/gists/{GIST_ID}"
+    headers = {"Authorization": f"token {GH_TOKEN}"}
+    r = requests.get(url, headers=headers)
+    r.raise_for_status()
+    files = r.json()["files"]
+    return files["last_event.txt"]["content"].strip()
 
 
-def save_last_event(event_key: str):
-    with open(LAST_EVENT_FILE, "w", encoding="utf-8") as f:
-        f.write(event_key)
+def save_last_event(event_id):
+    """Gist に last_event を保存"""
+    url = f"https://api.github.com/gists/{GIST_ID}"
+    headers = {"Authorization": f"token {GH_TOKEN}"}
+    data = {
+        "files": {
+            "last_event.txt": {
+                "content": event_id
+            }
+        }
+    }
+    r = requests.patch(url, headers=headers, json=data)
+    r.raise_for_status()
+    print(f"✅ Gist 更新: {event_id}")
 
 
 def main():
-    last_event = load_last_event()
-    print("📂 前回イベントキー:", last_event)
+    last_event = get_last_event()
+    print("📂 前回イベントID:", last_event)
 
     r = requests.get(FEED_URL)
     r.encoding = "utf-8"
     root = ET.fromstring(r.text)
 
-    ns = {
-        "eb": "http://xml.kishou.go.jp/jmaxml1/body/seismology1/",
-        "jmx_eb": "http://xml.kishou.go.jp/jmaxml1/elementBasis1/"
-    }
-
-    # 最新の entry を1件だけ処理
     for entry in root.findall("{http://www.w3.org/2005/Atom}entry"):
         title = entry.find("{http://www.w3.org/2005/Atom}title").text
         link = entry.find("{http://www.w3.org/2005/Atom}link").attrib["href"]
 
-        # 地震情報以外は無視
         if not any(key in title for key in ["震源", "震度", "津波"]):
             continue
 
+        entry_id = link
+        print("🆔 今回の entry_id:", entry_id)
+
+        if entry_id == last_event:
+            print("⚠️ 前回と同じなので通知しません")
+            return
+
+        # 詳細XML取得
         detail_xml = requests.get(link)
         detail_xml.encoding = "utf-8"
         detail_root = ET.fromstring(detail_xml.text)
 
-        # 発生時刻
+        ns = {
+            "eb": "http://xml.kishou.go.jp/jmaxml1/body/seismology1/",
+            "jmx_eb": "http://xml.kishou.go.jp/jmaxml1/elementBasis1/"
+        }
+
         origin_time = detail_root.findtext(".//eb:OriginTime", namespaces=ns)
-
-        # 震源地
         hypocenter = detail_root.findtext(".//eb:Hypocenter/eb:Area/eb:Name", namespaces=ns) or "不明"
-
-        # マグニチュード
         magnitude = detail_root.findtext(".//jmx_eb:Magnitude", namespaces=ns)
 
-        # 深さ
         depth = "不明"
         coord = detail_root.find(".//jmx_eb:Coordinate", namespaces=ns)
         if coord is not None and "description" in coord.attrib:
@@ -82,26 +98,15 @@ def main():
             m = re.search(r"深さ　?([０-９0-9]+)ｋｍ", desc)
             if m:
                 depth = m.group(1) + "km"
+            elif "ごく浅い" in desc:
+                depth = "ごく浅い"
+            elif "不明" in desc:
+                depth = "不明"
             else:
-                if "ごく浅い" in desc:
-                    depth = "ごく浅い"
-                elif "不明" in desc:
-                    depth = "不明"
-                else:
-                    depth = desc
+                depth = desc
 
-        # 最大震度
         max_intensity = detail_root.findtext(".//eb:MaxInt", namespaces=ns) or "不明"
 
-        # ✅ イベントキー = 発生時刻 + 震源地
-        event_key = f"{origin_time}-{hypocenter}"
-        print("🆔 今回のイベントキー:", event_key)
-
-        if event_key == last_event:
-            print("⚠️ 同じ地震なので通知しません")
-            return
-
-        # メッセージ
         msg = (
             f"📢 地震情報\n"
             f"{format_time(origin_time)}、地震がありました。\n"
@@ -113,12 +118,8 @@ def main():
         )
 
         send_telegram_message(msg)
-
-        # ✅ 最新のキーを保存
-        save_last_event(event_key)
-        print("✅ 保存したイベントキー:", event_key)
-
-        break  # 最新1件のみ
+        save_last_event(entry_id)
+        break  # 最新1件のみ処理
 
 
 if __name__ == "__main__":
