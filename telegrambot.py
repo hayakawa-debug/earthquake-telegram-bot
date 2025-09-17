@@ -12,7 +12,7 @@ FEED_URL = "https://www.data.jma.go.jp/developer/xml/feed/eqvol.xml"
 
 # Gist 設定
 GIST_ID = os.getenv("GIST_ID")  # 例: "d2d218f735290fbb3ee534cfa304196d"
-GITHUB_TOKEN = os.getenv("GITHUB_TOKEN")  # repo gist 権限付き PAT
+GIST_TOKEN = os.getenv("GIST_TOKEN")  # repo gist 権限付き PAT
 
 HEADERS = {"Authorization": f"token {GITHUB_TOKEN}"}
 
@@ -125,3 +125,4 @@ def main():
 
 if __name__ == "__main__":
     main()
+
