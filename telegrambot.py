@@ -18,7 +18,7 @@ def send_telegram_message(message: str):
     print("📤 Telegram API Response:", r.status_code, r.text)
 
 
-def format_time(iso_time: str):
+def format_time(iso_time: str) -> str:
     try:
         dt = datetime.fromisoformat(iso_time.replace("Z", "+00:00"))
         dt_jst = dt.astimezone(timezone(timedelta(hours=9)))
@@ -27,64 +27,51 @@ def format_time(iso_time: str):
         return "不明"
 
 
-def load_last_event_id():
+def load_last_event():
     if os.path.exists(LAST_EVENT_FILE):
         with open(LAST_EVENT_FILE, "r", encoding="utf-8") as f:
             return f.read().strip()
     return None
 
 
-def save_last_event_id(event_id: str):
+def save_last_event(event_key: str):
     with open(LAST_EVENT_FILE, "w", encoding="utf-8") as f:
-        f.write(event_id)
+        f.write(event_key)
 
 
 def main():
-    last_event_id = load_last_event_id()
-    print("📂 前回イベントID:", last_event_id)
+    last_event = load_last_event()
+    print("📂 前回イベントキー:", last_event)
 
-    response = requests.get(FEED_URL)
-    response.encoding = "utf-8"
-    root = ET.fromstring(response.text)
+    r = requests.get(FEED_URL)
+    r.encoding = "utf-8"
+    root = ET.fromstring(r.text)
 
+    ns = {
+        "eb": "http://xml.kishou.go.jp/jmaxml1/body/seismology1/",
+        "jmx_eb": "http://xml.kishou.go.jp/jmaxml1/elementBasis1/"
+    }
+
+    # 最新の entry を1件だけ処理
     for entry in root.findall("{http://www.w3.org/2005/Atom}entry"):
-        # ID
-        entry_id_elem = entry.find("{http://www.w3.org/2005/Atom}id")
-        if entry_id_elem is None:
-            print("⚠️ entry に <id> が見つかりません")
-            continue
-        entry_id = entry_id_elem.text.strip()
-        print("🆔 今回の entry_id:", entry_id)
+        title = entry.find("{http://www.w3.org/2005/Atom}title").text
+        link = entry.find("{http://www.w3.org/2005/Atom}link").attrib["href"]
 
-        # タイトル
-        title_elem = entry.find("{http://www.w3.org/2005/Atom}title")
-        title = title_elem.text if title_elem is not None else ""
-
-        # リンク
-        link_elem = entry.find("{http://www.w3.org/2005/Atom}link")
-        link = link_elem.attrib.get("href") if link_elem is not None else ""
-
-        # 地震以外はスキップ
+        # 地震情報以外は無視
         if not any(key in title for key in ["震源", "震度", "津波"]):
             continue
 
-        # 前回と同じならスキップ
-        if entry_id == last_event_id:
-            print("⚠️ このイベントは前回通知済み → スキップ:", entry_id)
-            return
-
-        # 詳細XMLを取得
         detail_xml = requests.get(link)
         detail_xml.encoding = "utf-8"
         detail_root = ET.fromstring(detail_xml.text)
 
-        ns = {
-            "eb": "http://xml.kishou.go.jp/jmaxml1/body/seismology1/",
-            "jmx_eb": "http://xml.kishou.go.jp/jmaxml1/elementBasis1/"
-        }
-
+        # 発生時刻
         origin_time = detail_root.findtext(".//eb:OriginTime", namespaces=ns)
+
+        # 震源地
         hypocenter = detail_root.findtext(".//eb:Hypocenter/eb:Area/eb:Name", namespaces=ns) or "不明"
+
+        # マグニチュード
         magnitude = detail_root.findtext(".//jmx_eb:Magnitude", namespaces=ns)
 
         # 深さ
@@ -95,16 +82,26 @@ def main():
             m = re.search(r"深さ　?([０-９0-9]+)ｋｍ", desc)
             if m:
                 depth = m.group(1) + "km"
-            elif "ごく浅い" in desc:
-                depth = "ごく浅い"
-            elif "不明" in desc:
-                depth = "不明"
             else:
-                depth = desc
+                if "ごく浅い" in desc:
+                    depth = "ごく浅い"
+                elif "不明" in desc:
+                    depth = "不明"
+                else:
+                    depth = desc
 
+        # 最大震度
         max_intensity = detail_root.findtext(".//eb:MaxInt", namespaces=ns) or "不明"
 
-        # メッセージ作成
+        # ✅ イベントキー = 発生時刻 + 震源地
+        event_key = f"{origin_time}-{hypocenter}"
+        print("🆔 今回のイベントキー:", event_key)
+
+        if event_key == last_event:
+            print("⚠️ 同じ地震なので通知しません")
+            return
+
+        # メッセージ
         msg = (
             f"📢 地震情報\n"
             f"{format_time(origin_time)}、地震がありました。\n"
@@ -117,11 +114,11 @@ def main():
 
         send_telegram_message(msg)
 
-        # イベントIDを保存
-        save_last_event_id(entry_id)
-        print("✅ 保存した entry_id:", entry_id)
+        # ✅ 最新のキーを保存
+        save_last_event(event_key)
+        print("✅ 保存したイベントキー:", event_key)
 
-        break  # 最新1件だけ通知
+        break  # 最新1件のみ
 
 
 if __name__ == "__main__":
