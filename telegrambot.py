@@ -128,10 +128,10 @@ def main():
         msg = (
             f"📢 地震情報\n"
             f"{format_time(origin_time)}ごろ、地震がありました。\n"
+            f"最大震度: {max_intensity}\n"
             f"震源地: {hypocenter}\n"
             f"マグニチュード: {magnitude or '不明'}\n"
             f"震源の深さ: {depth}\n"
-            f"最大震度: {max_intensity}\n"
             f"詳細: {entry_id}"
         )
 
@@ -143,5 +143,6 @@ def main():
 
 if __name__ == "__main__":
     main()
+
 
 
