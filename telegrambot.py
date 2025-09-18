@@ -107,6 +107,21 @@ def main():
         origin_time = detail_root.findtext(".//eb:OriginTime", namespaces=ns)
         hypocenter = detail_root.findtext(".//eb:Hypocenter/eb:Area/eb:Name", namespaces=ns) or "不明"
         magnitude = detail_root.findtext(".//jmx_eb:Magnitude", namespaces=ns)
+        # 深さ
+        depth = "不明"
+        coord = detail_root.find(".//jmx_eb:Coordinate", namespaces=ns)
+        if coord is not None and "description" in coord.attrib:
+            desc = coord.attrib["description"]
+            m = re.search(r"深さ　?([０-９0-9]+)ｋｍ", desc)
+            if m:
+                depth = m.group(1) + "km"
+            else:
+                if "ごく浅い" in desc:
+                    depth = "ごく浅い"
+                elif "不明" in desc:
+                    depth = "不明"
+                else:
+                    depth = desc
         max_intensity = detail_root.findtext(".//eb:MaxInt", namespaces=ns) or "不明"
 
         msg = (
@@ -114,6 +129,7 @@ def main():
             f"{format_time(origin_time)}ごろ、地震がありました。\n"
             f"震源地: {hypocenter}\n"
             f"マグニチュード: {magnitude or '不明'}\n"
+            f"震源の深さ: {depth}\n"
             f"最大震度: {max_intensity}\n"
             f"詳細: {entry_id}"
         )
@@ -126,3 +142,4 @@ def main():
 
 if __name__ == "__main__":
     main()
+
