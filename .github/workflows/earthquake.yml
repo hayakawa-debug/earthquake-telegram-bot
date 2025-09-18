@@ -2,7 +2,7 @@ name: Earthquake Notification
 
 on:
   schedule:
-    - cron: "*/2 * * * *"   # 2分ごと
+    - cron: "*/1 * * * *"   # 2分ごと
   workflow_dispatch:
 
 jobs:
