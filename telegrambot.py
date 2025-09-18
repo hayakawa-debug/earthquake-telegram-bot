@@ -2,6 +2,7 @@ import os
 import requests
 import xml.etree.ElementTree as ET
 from datetime import datetime, timezone, timedelta
+import re
 
 # Telegram 設定
 TELEGRAM_TOKEN = os.getenv("TELEGRAM_TOKEN")
@@ -142,4 +143,5 @@ def main():
 
 if __name__ == "__main__":
     main()
+
 
