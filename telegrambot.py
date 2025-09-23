@@ -75,9 +75,10 @@ def main():
         print("⚠️ 地震情報は見つかりませんでした")
         return
 
-    # 新しいものを古い順に通知
-    entries.reverse()
-
+    # フィードの entry をすべて取得（新しい順に並んでいるとは限らないので逆順で処理）
+    entries = root.findall("{http://www.w3.org/2005/Atom}entry")
+    entries.reverse()  # 古い順から処理 → 最新まで漏れなく通知
+    
     new_events = []
     found_last = (last_event == "NO_EVENT")
 
@@ -143,6 +144,7 @@ def main():
 
 if __name__ == "__main__":
     main()
+
 
 
 
