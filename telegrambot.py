@@ -67,20 +67,22 @@ def main():
     r.encoding = "utf-8"
     root = ET.fromstring(r.text)
 
-    entries = []
+    # 地震エントリだけ抽出
+    eq_entries = []
     for entry in root.findall("{http://www.w3.org/2005/Atom}entry"):
         link = entry.find("{http://www.w3.org/2005/Atom}link").attrib["href"]
-        print("🔗 feed entry link:", link)  # ← 追加
-        if "VXSE53" in link:  # ✅ 地震情報のみ
-            entries.append(link)
+        if "VXSE53" in link:  # ✅ 地震のみ
+            eq_entries.append(link)
+            print("🪨 地震 entry:", link)
+        else:
+            print("🔕 無視:", link)
 
-    if not entries:
+    if not eq_entries:
         print("⚠️ 地震情報は見つかりませんでした")
         return
 
-    # フィードの entry をすべて取得（新しい順に並んでいるとは限らないので逆順で処理）
-    entries = root.findall("{http://www.w3.org/2005/Atom}entry")
-    entries.reverse()  # 古い順から処理 → 最新まで漏れなく通知
+    # 古い順に処理
+    eq_entries.reverse()
     
     new_events = []
     found_last = (last_event == "NO_EVENT")
@@ -147,6 +149,7 @@ def main():
 
 if __name__ == "__main__":
     main()
+
 
 
 
