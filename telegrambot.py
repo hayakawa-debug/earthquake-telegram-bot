@@ -24,11 +24,11 @@ def send_telegram_message(message):
     print("📤 Telegram API Response:", r.status_code, r.text)
 
 def format_time(iso_time):
-    """ISO8601 → 日本時間に変換"""
+    """ISO8601 → 日本時間に変換（年月日+時刻付き）"""
     try:
         dt = datetime.fromisoformat(iso_time.replace("Z", "+00:00"))
         dt_jst = dt.astimezone(timezone(timedelta(hours=9)))
-        return dt_jst.strftime("%H時%M分")
+        return dt_jst.strftime("%Y/%m/%d %H時%M分")
     except:
         return "不明"
 
@@ -141,3 +141,4 @@ def main():
 
 if __name__ == "__main__":
     main()
+
