@@ -57,6 +57,15 @@ def save_last_event(event_id):
 
 
 def main():
+    
+    entries = []
+    for entry in root.findall("{http://www.w3.org/2005/Atom}entry"):
+    link = entry.find("{http://www.w3.org/2005/Atom}link").attrib["href"]
+    print("🔗 feed entry link:", link)  # ← 追加
+    if "VXSE53" in link:  # ✅ 地震情報のみ
+        entries.append(link)
+
+    
     last_event = load_last_event()
     print("📂 前回イベントID:", last_event)
 
@@ -144,4 +153,5 @@ def main():
 
 if __name__ == "__main__":
     main()
+
 
