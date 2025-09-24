@@ -14,9 +14,7 @@ FEED_URL = "https://www.data.jma.go.jp/developer/xml/feed/eqvol.xml"
 # Gist 設定
 GIST_ID = os.getenv("GIST_ID")
 GIST_TOKEN = os.getenv("GIST_TOKEN")  # repo gist 権限付き PAT
-
 HEADERS = {"Authorization": f"token {GIST_TOKEN}"}
-
 
 def send_telegram_message(message):
     """Telegramへ通知"""
@@ -24,7 +22,6 @@ def send_telegram_message(message):
     data = {"chat_id": TELEGRAM_CHAT_ID, "text": message}
     r = requests.post(url, data=data)
     print("📤 Telegram API Response:", r.status_code, r.text)
-
 
 def format_time(iso_time):
     """ISO8601 → 日本時間に変換"""
@@ -34,7 +31,6 @@ def format_time(iso_time):
         return dt_jst.strftime("%H時%M分")
     except:
         return "不明"
-
 
 def load_last_event():
     """Gist から最後のイベントIDを取得"""
@@ -46,7 +42,6 @@ def load_last_event():
         return files["last_event.txt"]["content"].strip()
     return "NO_EVENT"
 
-
 def save_last_event(event_id):
     """最後のイベントIDを Gist に保存"""
     url = f"https://api.github.com/gists/{GIST_ID}"
@@ -55,10 +50,7 @@ def save_last_event(event_id):
     r.raise_for_status()
     print("✅ 保存した entry_id:", event_id)
 
-
 def main():
-    
-    entries = []
     last_event = load_last_event()
     print("📂 前回イベントID:", last_event)
 
@@ -67,15 +59,11 @@ def main():
     r.encoding = "utf-8"
     root = ET.fromstring(r.text)
 
-    # 地震エントリだけ抽出
     eq_entries = []
     for entry in root.findall("{http://www.w3.org/2005/Atom}entry"):
         link = entry.find("{http://www.w3.org/2005/Atom}link").attrib["href"]
-        if "VXSE53" in link:  # ✅ 地震のみ
+        if "VXSE53" in link:  # ✅ 地震情報のみ
             eq_entries.append(link)
-            print("🪨 地震 entry:", link)
-        else:
-            print("🔕 無視:", link)
 
     if not eq_entries:
         print("⚠️ 地震情報は見つかりませんでした")
@@ -83,19 +71,23 @@ def main():
 
     # 古い順に処理
     eq_entries.reverse()
-    
+
     new_events = []
     found_last = (last_event == "NO_EVENT")
+    matched_last = False
 
-    for entry_id in entries:
+    for entry_id in eq_entries:
         if not found_last:
             if entry_id == last_event:
                 found_last = True
+                matched_last = True
             continue
-
-        # 新しい地震を通知
-        print("🆔 新規 entry_id:", entry_id)
         new_events.append(entry_id)
+
+    # フィードに last_event が無ければ → 最新だけ通知
+    if not matched_last and eq_entries:
+        print("⚠️ 前回イベントがフィードに見つからず → 最新を通知対象にします")
+        new_events = [eq_entries[-1]]
 
     if not new_events:
         print("⚠️ 新しい地震はありません")
@@ -114,6 +106,7 @@ def main():
         origin_time = detail_root.findtext(".//eb:OriginTime", namespaces=ns)
         hypocenter = detail_root.findtext(".//eb:Hypocenter/eb:Area/eb:Name", namespaces=ns) or "不明"
         magnitude = detail_root.findtext(".//jmx_eb:Magnitude", namespaces=ns)
+
         # 深さ
         depth = "不明"
         coord = detail_root.find(".//jmx_eb:Coordinate", namespaces=ns)
@@ -129,6 +122,7 @@ def main():
                     depth = "不明"
                 else:
                     depth = desc
+
         max_intensity = detail_root.findtext(".//eb:MaxInt", namespaces=ns) or "不明"
 
         msg = (
@@ -140,17 +134,10 @@ def main():
             f"震源の深さ: {depth}\n"
             f"詳細: {entry_id}"
         )
-
         send_telegram_message(msg)
 
     # 最後の地震を保存
     save_last_event(new_events[-1])
 
-
 if __name__ == "__main__":
     main()
-
-
-
-
-
